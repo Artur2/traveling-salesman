@@ -1,2 +1,2 @@
 pub(crate) mod nodes;
-pub(crate) mod graph;
+pub mod graph;

@@ -13,7 +13,7 @@ pub struct Graph {
 impl Graph {
     pub fn new(name: String) -> Graph {
         Graph {
-            name: name,
+            name,
             vertices: vec![],
         }
     }
