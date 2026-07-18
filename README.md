@@ -1,2 +1,2 @@
 # traveling-salesman
-Genetic algorith solving traveling salesman problem
+Genetic algorithm solving traveling salesman problem
