@@ -10,9 +10,13 @@ use std::rc::Rc;
 
 #[derive(Default)]
 pub struct Graph {
+    /// Name of graph
     pub name: String,
+    /// Entry points to root vertices
     pub vertices: Vec<Rc<RefCell<Vertex>>>,
+    /// Flat vertex references
     pub vertex_references: Vec<Rc<RefCell<Vertex>>>,
+    /// Flat edge references
     pub edge_references: Vec<Rc<RefCell<Edge>>>,
 }
 
@@ -118,6 +122,7 @@ impl Graph {
         }
     }
 
+    /// Checking if graph has vertex by name
     pub fn has_vertex(&self, name: String) -> bool {
         let found = self.vertices.iter().find(|v| {
             let borrowed_v = v.borrow();
@@ -127,6 +132,7 @@ impl Graph {
         found.is_some()
     }
 
+    /// Checking if graph has edge by identifier
     pub fn has_edge(&self, identifier: String) -> bool {
         let found = self.edge_references.iter().find(|e| {
             let borrowed_e = e.borrow();
@@ -136,6 +142,7 @@ impl Graph {
         found.is_some()
     }
 
+    /// Checking if edge has connections(source or/and destination or none)
     pub fn has_edge_connections(
         &self,
         identifier: String,
