@@ -8,16 +8,19 @@ use crate::nodes::vertex::Vertex;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+type MutableVertexReferences = Vec<Rc<RefCell<Vertex>>>;
+type EdgeReferences = Vec<Rc<RefCell<Edge>>>;
+
 #[derive(Default)]
 pub struct Graph {
     /// Name of graph
     pub name: String,
     /// Entry points to root vertices
-    pub vertices: Vec<Rc<RefCell<Vertex>>>,
+    pub vertices: MutableVertexReferences,
     /// Flat vertex references
-    pub vertex_references: Vec<Rc<RefCell<Vertex>>>,
+    pub vertex_references: MutableVertexReferences,
     /// Flat edge references
-    pub edge_references: Vec<Rc<RefCell<Edge>>>,
+    pub edge_references: EdgeReferences,
 }
 
 impl Graph {
@@ -49,7 +52,7 @@ impl Graph {
     }
 
     /// For connecting vertices to an existing edges, which connected to **root** vertices\
-    /// **Panics** when cant find edge, or edge already has destination
+    /// **Panics** when cant find edge or edge already has destination
     pub fn connect_vertex_to_edge(&mut self, name: String, identifier: String) {
         let found_edge = self.edge_references.iter().find(|e| {
             let borrowed_e = e.borrow();
@@ -77,7 +80,9 @@ impl Graph {
     }
 
     /// For connecting edges to **root** vertices\
-    /// **Panics** if edge with same identifier found
+    /// **Panics** if edge with same identifier found\
+    /// *Remarks*\
+    /// If vertex not found, we create new root vertex
     pub fn connect_edge_to_vertex(&mut self, name: String, identifier: String, weight: u32) {
         let found_edge = self.edge_references.iter().find(|e| {
             let borrowed_e = e.borrow();
@@ -94,23 +99,7 @@ impl Graph {
         });
 
         // create vertex
-        if found_vertex.is_none() {
-            let new_vertex = Vertex::new(name);
-            let new_edge = Edge::new(identifier, weight);
-
-            let vertex_rc = Rc::new(RefCell::new(new_vertex));
-            let edge_rc = Rc::new(RefCell::new(new_edge));
-
-            let mut changing_vertex = vertex_rc.borrow_mut();
-            let mut changing_edge = edge_rc.borrow_mut();
-
-            changing_vertex.edges.push(edge_rc.clone());
-            changing_edge.source = Some(vertex_rc.clone());
-
-            self.edge_references.push(edge_rc.clone());
-            self.vertices.push(vertex_rc.clone());
-            self.vertex_references.push(vertex_rc.clone());
-        } else {
+        if found_vertex.is_some() {
             let mut changing_vertex = found_vertex.unwrap().borrow_mut();
             let mut new_edge = Edge::new(identifier, weight);
 
@@ -119,6 +108,8 @@ impl Graph {
             let new_edge_rc = Rc::new(RefCell::new(new_edge));
             self.edge_references.push(new_edge_rc.clone());
             changing_vertex.edges.push(new_edge_rc);
+        } else {
+            panic!("Create vertex first")
         }
     }
 
@@ -154,16 +145,16 @@ impl Graph {
         });
 
         if found.is_none() {
-            false
-        } else {
-            let edge = found.unwrap().borrow();
-            match connection_type {
-                ConnectionType::None => edge.source.is_none() && edge.destination.is_none(),
-                ConnectionType::Source => edge.source.is_some() && edge.destination.is_none(),
-                ConnectionType::Destination => edge.source.is_none() && edge.destination.is_some(),
-                ConnectionType::SourceAndDestination => {
-                    edge.source.is_some() && edge.destination.is_some()
-                }
+            return false;
+        }
+
+        let edge = found.unwrap().borrow();
+        match connection_type {
+            ConnectionType::None => edge.source.is_none() && edge.destination.is_none(),
+            ConnectionType::Source => edge.source.is_some() && edge.destination.is_none(),
+            ConnectionType::Destination => edge.source.is_none() && edge.destination.is_some(),
+            ConnectionType::SourceAndDestination => {
+                edge.source.is_some() && edge.destination.is_some()
             }
         }
     }
@@ -236,5 +227,12 @@ pub mod tests {
         let mut graph = Graph::default();
         graph.add_vertex(String::from("vertex01"));
         graph.add_vertex(String::from("vertex01"));
+    }
+
+    #[test]
+    #[should_panic(expected = "Create vertex first")]
+    pub fn connecting_edge_to_unknown_vertex() {
+        let mut graph = Graph::default();
+        graph.connect_edge_to_vertex(String::from("vertex01"), String::from("edge01"), 1);
     }
 }

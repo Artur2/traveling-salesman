@@ -4,7 +4,6 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 #[derive(Default)]
-#[allow(dead_code)]
 pub struct Vertex {
     pub name: String,
     pub edges: Vec<Rc<RefCell<Edge>>>,
