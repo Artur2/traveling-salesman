@@ -4,13 +4,13 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 #[derive(Default)]
-pub struct Vertex {
-    pub name: String,
-    pub edges: Vec<Rc<RefCell<Edge>>>,
+pub struct Vertex<'a> {
+    pub name: &'a str,
+    pub edges: Vec<Rc<RefCell<Edge<'a>>>>,
 }
 
-impl Vertex {
-    pub fn new(name: String) -> Vertex {
+impl<'a> Vertex<'a> {
+    pub fn new(name: &'a str) -> Self {
         Vertex {
             name,
             edges: vec![]

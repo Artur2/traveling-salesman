@@ -2,18 +2,18 @@ use crate::nodes::vertex::Vertex;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-type OptionalVertexRc = Option<Rc<RefCell<Vertex>>>;
+type OptionalVertexRc<'a> = Option<Rc<RefCell<Vertex<'a>>>>;
 
 #[derive(Default)]
-pub struct Edge {
-    pub identifier: String,
+pub struct Edge<'a> {
+    pub identifier: &'a str,
     pub weight: u32,
-    pub source: OptionalVertexRc,
-    pub destination: OptionalVertexRc,
+    pub source: OptionalVertexRc<'a>,
+    pub destination: OptionalVertexRc<'a>,
 }
 
-impl Edge {
-    pub fn new(identifier: String, weight: u32) -> Self {
+impl<'a> Edge<'a> {
+    pub fn new(identifier: &'a str, weight: u32) -> Self {
         Self {
             identifier,
             weight,
