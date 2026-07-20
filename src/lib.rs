@@ -1,2 +1,2 @@
-pub(crate) mod nodes;
+pub mod nodes;
 pub mod graph;
