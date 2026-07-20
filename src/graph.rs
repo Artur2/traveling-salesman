@@ -1,37 +1,177 @@
+#![allow(unused_variables)]
+#![allow(unused_imports)]
+#![allow(dead_code)]
+
 use crate::nodes::edge::Edge;
 use crate::nodes::vertex::Vertex;
 use std::cell::RefCell;
 use std::rc::Rc;
 
 #[derive(Default)]
-#[allow(dead_code)]
 pub struct Graph {
     pub name: String,
-    pub vertices: Vec<RefCell<Vertex>>,
-    pub vertices_references: Vec<Rc<RefCell<Vertex>>>,
-    pub edges_references: Vec<Rc<RefCell<Edge>>>,
+    pub vertices: Vec<Rc<RefCell<Vertex>>>,
+    pub vertex_references: Vec<Rc<RefCell<Vertex>>>,
+    pub edge_references: Vec<Rc<RefCell<Edge>>>,
 }
 
-#[allow(dead_code)]
 impl Graph {
     pub fn new(name: String) -> Graph {
         Graph {
             name,
             vertices: vec![],
-            vertices_references: vec![],
-            edges_references: vec![],
+            vertex_references: vec![],
+            edge_references: vec![],
         }
     }
 
+    /// Only for disconnected vertices
     pub fn add_vertex(&mut self, name: String) {
-        todo!()
+        let found = self.vertices.iter().find(|v| {
+            let borrowed_v = v.borrow();
+            borrowed_v.name == name
+        });
+
+        if found.is_none() {
+            let new_vertex = Vertex::new(name);
+            let cell = RefCell::new(new_vertex);
+            let rc = Rc::new(cell);
+            self.vertex_references.push(rc.clone());
+            self.vertices.push(rc);
+        }
     }
 
-    pub fn add_vertex_to_edge(&mut self, name: String, weight: u32) {
-        todo!()
+    /// For connecting vertices to an existing edges, which connected to **root** vertices\
+    /// **Panics** when cant find edge, or edge already has destination
+    pub fn connect_vertex_to_edge(&mut self, name: String, identifier: String, weight: u32) {
+        let found_edge = self.edge_references.iter().find(|e| {
+            let borrowed_e = e.borrow();
+            borrowed_e.identifier == identifier
+        });
+
+        if found_edge.is_none() {
+            panic!("create edge first")
+        } else {
+            if let Some(found_edge) = found_edge {
+                if found_edge.borrow().destination.is_some() {
+                    panic!("edge already has source and destination");
+                }
+            }
+
+            let vertex = Vertex::new(name);
+            let vertex_rc = Rc::new(RefCell::new(vertex));
+
+            let mut changing_edge = found_edge.unwrap().borrow_mut();
+
+            changing_edge.destination = Some(vertex_rc.clone());
+            self.vertices.push(vertex_rc.clone());
+        }
     }
 
-    pub fn add_edge_to_vertex(&mut self, name: String, weight: u32) {
-        todo!()
+    /// For connecting edges to **root** vertices\
+    /// **Panics** if edge with same identifier found
+    pub fn connect_edge_to_vertex(&mut self, name: String, identifier: String, weight: u32) {
+        let found_edge = self.edge_references.iter().find(|e| {
+            let borrowed_e = e.borrow();
+            borrowed_e.identifier == identifier
+        });
+
+        if found_edge.is_some() {
+            panic!("already has edge with same identifier");
+        }
+
+        let found_vertex = self.vertex_references.iter().find(|v| {
+            let borrowed_v = v.borrow();
+            borrowed_v.name == name
+        });
+
+        // create vertex
+        if found_vertex.is_none() {
+            let new_vertex = Vertex::new(name);
+            let new_edge = Edge::new(identifier, weight);
+
+            let vertex_rc = Rc::new(RefCell::new(new_vertex));
+            let edge_rc = Rc::new(RefCell::new(new_edge));
+
+            let mut changing_vertex = vertex_rc.borrow_mut();
+            let mut changing_edge = edge_rc.borrow_mut();
+
+            changing_vertex.edges.push(edge_rc.clone());
+            changing_edge.source = Some(vertex_rc.clone());
+
+            self.edge_references.push(edge_rc.clone());
+            self.vertices.push(vertex_rc.clone());
+            self.vertex_references.push(vertex_rc.clone());
+        } else {
+            let mut changing_vertex = found_vertex.unwrap().borrow_mut();
+            let mut new_edge = Edge::new(identifier, weight);
+
+            new_edge.source = Some(found_vertex.unwrap().clone());
+
+            let new_edge_rc = Rc::new(RefCell::new(new_edge));
+            self.edge_references.push(new_edge_rc.clone());
+            changing_vertex.edges.push(new_edge_rc);
+        }
+    }
+
+    pub fn has_vertex(&self, name: String) -> bool {
+        let found = self.vertices.iter().find(|v| {
+            let borrowed_v = v.borrow();
+            borrowed_v.name == name
+        });
+
+        found.is_some()
+    }
+
+    pub fn has_edge(&self, identifier: String) -> bool {
+        let found = self.edge_references.iter().find(|e| {
+            let borrowed_e = e.borrow();
+            borrowed_e.identifier == identifier
+        });
+
+        found.is_some()
+    }
+}
+
+pub mod tests {
+    use super::*;
+
+    #[test]
+    pub fn should_add_vertex() {
+        let mut graph = Graph::default();
+        graph.add_vertex(String::from("test"));
+
+        assert!(graph.has_vertex(String::from("test")));
+    }
+
+    #[test]
+    pub fn should_add_edge_to_vertex() {
+        let mut graph = Graph::default();
+        graph.add_vertex(String::from("vertex01"));
+        graph.connect_edge_to_vertex(String::from("vertex01"), String::from("edge01"), 1);
+
+        assert!(graph.has_edge(String::from("edge01")));
+        assert!(graph.has_vertex(String::from("vertex01")));
+    }
+
+    #[test]
+    #[should_panic(expected = "create edge first")]
+    pub fn should_panic_if_edge_is_not_exist() {
+        let mut graph = Graph::default();
+        graph.add_vertex(String::from("vertex01"));
+        graph.connect_edge_to_vertex(String::from("vertex01"), String::from("edge01"), 1);
+
+        graph.connect_vertex_to_edge(String::from("vertex01"), String::from("edge02"), 1);
+    }
+
+    #[test]
+    #[should_panic(expected = "edge already has source and destination")]
+    pub fn should_panic_if_edge_has_source_and_destination() {
+        let mut graph = Graph::default();
+        graph.add_vertex(String::from("vertex01"));
+        graph.connect_edge_to_vertex(String::from("vertex01"), String::from("edge01"), 1);
+        graph.connect_vertex_to_edge(String::from("vertex02"), String::from("edge01"), 1);
+
+        graph.connect_vertex_to_edge(String::from("vertex02"), String::from("edge01"), 1);
     }
 }
