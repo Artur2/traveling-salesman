@@ -40,14 +40,15 @@ impl<'a> Graph<'a> {
             borrowed_v.name == name
         });
 
-        if found.is_none() {
-            let new_vertex = Vertex::new(name);
-            let cell = RefCell::new(new_vertex);
-            let rc = Rc::new(cell);
-            self.vertex_references.push(rc.clone());
-            self.vertices.push(rc);
-        } else {
-            panic!("Vertex {} already exists", name);
+        match found {
+            None => {
+                let new_vertex = Vertex::new(name);
+                let cell = RefCell::new(new_vertex);
+                let rc = Rc::new(cell);
+                self.vertex_references.push(rc.clone());
+                self.vertices.push(rc);
+            }
+            Some(_) => panic!("Vertex {} already exists", name),
         }
     }
 
@@ -59,23 +60,20 @@ impl<'a> Graph<'a> {
             borrowed_e.identifier == identifier
         });
 
-        if found_edge.is_none() {
-            panic!("Create edge first")
-        } else {
-            if let Some(found_edge) = found_edge {
-                if found_edge.borrow().destination.is_some() {
+        match found_edge {
+            Some(edge) => {
+                let mut changing_edge = edge.borrow_mut();
+                if changing_edge.destination.is_some() {
                     panic!("Edge already has source and destination");
                 }
+                let vertex = Vertex::new(name);
+                let vertex_rc = Rc::new(RefCell::new(vertex));
+
+                changing_edge.destination = Some(vertex_rc.clone());
+                self.vertices.push(vertex_rc.clone());
+                self.vertex_references.push(vertex_rc);
             }
-
-            let vertex = Vertex::new(name);
-            let vertex_rc = Rc::new(RefCell::new(vertex));
-
-            let mut changing_edge = found_edge.unwrap().borrow_mut();
-
-            changing_edge.destination = Some(vertex_rc.clone());
-            self.vertices.push(vertex_rc.clone());
-            self.vertex_references.push(vertex_rc.clone());
+            None => panic!("Create edge first"),
         }
     }
 
@@ -99,17 +97,18 @@ impl<'a> Graph<'a> {
         });
 
         // create vertex
-        if found_vertex.is_some() {
-            let mut changing_vertex = found_vertex.unwrap().borrow_mut();
-            let mut new_edge = Edge::new(identifier, weight);
+        match found_vertex {
+            Some(vertex) => {
+                let mut changing_vertex = vertex.borrow_mut();
+                let mut new_edge = Edge::new(identifier, weight);
 
-            new_edge.source = Some(found_vertex.unwrap().clone());
+                new_edge.source = Some(found_vertex.unwrap().clone());
 
-            let new_edge_rc = Rc::new(RefCell::new(new_edge));
-            self.edge_references.push(new_edge_rc.clone());
-            changing_vertex.edges.push(new_edge_rc);
-        } else {
-            panic!("Create vertex first")
+                let edge_rc = Rc::new(RefCell::new(new_edge));
+                self.edge_references.push(edge_rc.clone());
+                changing_vertex.edges.push(edge_rc);
+            }
+            None => panic!("Create vertex first"),
         }
     }
 
@@ -165,9 +164,8 @@ pub mod tests {
 
     #[test]
     pub fn should_add_vertex() {
-        let mut graph = Graph::default();
+        let mut graph = Graph::new("test");
         graph.add_vertex("test");
-
         assert!(graph.has_vertex("test"));
     }
 
