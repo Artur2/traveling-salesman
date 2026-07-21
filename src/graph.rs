@@ -9,7 +9,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 type MutableVertexReferences<'a> = Vec<Rc<RefCell<Vertex<'a>>>>;
-type EdgeReferences<'a> = Vec<Rc<RefCell<Edge<'a>>>>;
+type MutableEdgeReferences<'a> = Vec<Rc<RefCell<Edge<'a>>>>;
 
 #[derive(Default)]
 pub struct Graph<'a> {
@@ -20,7 +20,7 @@ pub struct Graph<'a> {
     /// Flat vertex references
     pub vertex_references: MutableVertexReferences<'a>,
     /// Flat edge references
-    pub edge_references: EdgeReferences<'a>,
+    pub edge_references: MutableEdgeReferences<'a>,
 }
 
 impl<'a> Graph<'a> {
@@ -157,7 +157,7 @@ impl<'a> Graph<'a> {
             }
         }
     }
-    
+
     /// Generates random routes from source to destination
     /// **Remarks**
     /// You need to add enough vertices to obtain random ways
