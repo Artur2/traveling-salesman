@@ -157,6 +157,13 @@ impl<'a> Graph<'a> {
             }
         }
     }
+    
+    /// Generates random routes from source to destination
+    /// **Remarks**
+    /// You need to add enough vertices to obtain random ways
+    pub fn generate_random_routes(self, source: &'a str, destination: &'a str) -> Vec<MutableVertexReferences<'a>> {
+        todo!("Implement generate_random_routes")
+    }
 }
 
 pub mod tests {
@@ -190,6 +197,15 @@ pub mod tests {
     }
 
     #[test]
+    pub fn edge_should_has_at_least_one_connection() {
+        let mut graph = Graph::new("test");
+        graph.add_vertex("vertex01");
+        graph.connect_edge_to_vertex("vertex01", "edge01", 1);
+
+        assert!(graph.has_edge_connections("edge01", ConnectionType::Source));
+    }
+
+    #[test]
     #[should_panic(expected = "Create edge first")]
     pub fn should_panic_if_edge_is_not_exist() {
         let mut graph = Graph::new("test");
@@ -208,15 +224,6 @@ pub mod tests {
         graph.connect_vertex_to_edge("vertex02", "edge01");
 
         graph.connect_vertex_to_edge("vertex02", "edge01");
-    }
-
-    #[test]
-    pub fn edge_should_has_at_least_one_connection() {
-        let mut graph = Graph::new("test");
-        graph.add_vertex("vertex01");
-        graph.connect_edge_to_vertex("vertex01", "edge01", 1);
-
-        assert!(graph.has_edge_connections("edge01", ConnectionType::Source));
     }
 
     #[test]
