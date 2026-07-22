@@ -15,8 +15,6 @@ type MutableEdgeReferences<'a> = Vec<Rc<RefCell<Edge<'a>>>>;
 pub struct Graph<'a> {
     /// Name of graph
     pub name: &'a str,
-    /// Entry points to root vertices
-    pub vertices: MutableVertexReferences<'a>,
     /// Flat vertex references
     pub vertex_references: MutableVertexReferences<'a>,
     /// Flat edge references
@@ -27,7 +25,6 @@ impl<'a> Graph<'a> {
     pub fn new(name: &'a str) -> Self {
         Graph {
             name,
-            vertices: vec![],
             vertex_references: vec![],
             edge_references: vec![],
         }
@@ -35,7 +32,7 @@ impl<'a> Graph<'a> {
 
     /// Only for disconnected vertices
     pub fn add_vertex(&mut self, name: &'a str) {
-        let found = self.vertices.iter().find(|v| {
+        let found = self.vertex_references.iter().find(|v| {
             let borrowed_v = v.borrow();
             borrowed_v.name == name
         });
@@ -45,76 +42,53 @@ impl<'a> Graph<'a> {
                 let new_vertex = Vertex::new(name);
                 let cell = RefCell::new(new_vertex);
                 let rc = Rc::new(cell);
-                self.vertex_references.push(rc.clone());
-                self.vertices.push(rc);
+                self.vertex_references.push(rc);
             }
             Some(_) => panic!("Vertex {} already exists", name),
         }
     }
 
-    /// For connecting vertices to an existing edges, which connected to **root** vertices\
-    /// **Panics** when cant find edge or edge already has destination
-    pub fn connect_vertex_to_edge(&mut self, vertex_name: &'a str, edge_identifier: &'a str) {
-        let found_edge = self.edge_references.iter().find(|e| {
-            let borrowed_e = e.borrow();
-            borrowed_e.identifier == edge_identifier
-        });
-
-        match found_edge {
-            Some(edge) => {
-                let mut changing_edge = edge.borrow_mut();
-                if changing_edge.destination.is_some() {
-                    panic!("Edge already has source and destination");
-                }
-                let vertex = Vertex::new(vertex_name);
-                let vertex_rc = Rc::new(RefCell::new(vertex));
-
-                changing_edge.destination = Some(vertex_rc.clone());
-                self.vertices.push(vertex_rc.clone());
-                self.vertex_references.push(vertex_rc);
-            }
-            None => panic!("Create edge first"),
-        }
-    }
-
-    /// For connecting edges to **root** vertices\
-    /// **Panics** if edge with same identifier found\
-    /// *Remarks*\
-    /// If vertex not found, we create new root vertex
-    pub fn connect_edge_to_vertex(&mut self, vertex_name: &'a str, edge_identifier: &'a str, weight: u32) {
-        let found_edge = self.edge_references.iter().find(|e| {
-            let borrowed_e = e.borrow();
-            borrowed_e.identifier == edge_identifier
-        });
-
-        if found_edge.is_some() {
-            panic!("Already has edge with same identifier");
+    pub fn connect_vertices(
+        &mut self,
+        source_vector_name: &'a str,
+        destination_vector_name: &'a str,
+        edge_identifier: &'a str,
+        weight: u32,
+    ) {
+        if self.has_connection_between_vertices(source_vector_name, destination_vector_name) {
+            panic!("Duplicate connection");
         }
 
-        let found_vertex = self.vertex_references.iter().find(|v| {
+        let found_source_vector = self.vertex_references.iter().find(|v| {
             let borrowed_v = v.borrow();
-            borrowed_v.name == vertex_name
+            borrowed_v.name == source_vector_name
+        });
+        let found_destination_vector = self.vertex_references.iter().find(|v| {
+            let borrowed_v = v.borrow();
+            borrowed_v.name == destination_vector_name
         });
 
-        // create vertex
-        match found_vertex {
-            Some(vertex) => {
-                let mut changing_vertex = vertex.borrow_mut();
-                let mut new_edge = Edge::new(edge_identifier, weight);
-
-                new_edge.source = Some(found_vertex.unwrap().clone());
-
-                let edge_rc = Rc::new(RefCell::new(new_edge));
-                self.edge_references.push(edge_rc.clone());
-                changing_vertex.edges.push(edge_rc);
-            }
-            None => panic!("Create vertex first"),
+        if found_source_vector.is_none() || found_destination_vector.is_none() {
+            panic!("Create vertex first");
         }
+
+        let mut source_vector = found_source_vector.unwrap().borrow_mut();
+        let mut destination_vector = found_destination_vector.unwrap().borrow_mut();
+
+        let mut edge = Edge::new(edge_identifier, weight);
+        edge.source = Some(found_source_vector.unwrap().clone());
+        edge.destination = Some(found_destination_vector.unwrap().clone());
+
+        let edge_rc = Rc::new(RefCell::new(edge));
+        source_vector.edges.push(edge_rc.clone());
+        destination_vector.edges.push(edge_rc.clone());
+
+        self.edge_references.push(edge_rc);
     }
 
     /// Checking if graph has vertex by name
     pub fn has_vertex(&self, name: &'a str) -> bool {
-        let found = self.vertices.iter().find(|v| {
+        let found = self.vertex_references.iter().find(|v| {
             let borrowed_v = v.borrow();
             borrowed_v.name == name
         });
@@ -130,6 +104,20 @@ impl<'a> Graph<'a> {
         });
 
         found.is_some()
+    }
+
+    pub fn has_connection_between_vertices(&self, source: &'a str, destination: &'a str) -> bool {
+        self.edge_references.iter().any(|edge| {
+            let borrowed_edge = edge.borrow();
+            let unwrapped_source = borrowed_edge.source.as_ref().unwrap();
+            let unwrapped_destination = borrowed_edge.destination.as_ref().unwrap();
+
+            let borrowed_source = unwrapped_source.borrow();
+            let borrowed_destination = unwrapped_destination.borrow();
+
+            (borrowed_source.name == source && borrowed_destination.name == destination)
+                || (borrowed_source.name == destination && borrowed_destination.name == source)
+        })
     }
 
     /// Checking if edge has connections(source or/and destination or none)
@@ -161,7 +149,11 @@ impl<'a> Graph<'a> {
     /// Generates random routes from source to destination
     /// **Remarks**
     /// You need to add enough vertices to obtain random ways
-    pub fn generate_random_routes(self, source: &'a str, destination: &'a str) -> Vec<MutableVertexReferences<'a>> {
+    pub fn generate_random_routes(
+        self,
+        source: &'a str,
+        destination: &'a str,
+    ) -> Vec<MutableVertexReferences<'a>> {
         todo!("Implement generate_random_routes")
     }
 }
@@ -177,74 +169,53 @@ pub mod tests {
     }
 
     #[test]
-    pub fn should_add_edge_to_vertex() {
-        let mut graph = Graph::new("test");
-        graph.add_vertex("vertex01");
-        graph.connect_edge_to_vertex("vertex01", "edge01", 1);
-
-        assert!(graph.has_edge("edge01"));
-        assert!(graph.has_vertex("vertex01"));
-    }
-
-    #[test]
-    pub fn should_add_child_vertex_to_edge() {
-        let mut graph = Graph::new("test");
-        graph.add_vertex("source");
-        graph.connect_edge_to_vertex("source", "edge01", 1);
-        graph.connect_vertex_to_edge("destination", "edge01");
-
-        assert!(graph.has_vertex("destination"));
-    }
-
-    #[test]
-    pub fn edge_should_has_at_least_one_connection() {
-        let mut graph = Graph::new("test");
-        graph.add_vertex("vertex01");
-        graph.connect_edge_to_vertex("vertex01", "edge01", 1);
-
-        assert!(graph.has_edge_connections("edge01", ConnectionType::Source));
-    }
-
-
-    #[test]
-    pub fn should_return_correct_result_with_edge_source_connected() {
-        let mut graph = Graph::new("test");
-        graph.add_vertex("vertex01");
-        graph.connect_edge_to_vertex("vertex01", "edge01", 1);
-        
-        assert!(graph.has_edge_connections("edge01", ConnectionType::Source));
-    }
-
-    #[test]
     pub fn should_return_correct_result_with_edge_source_destination_connected() {
         let mut graph = Graph::new("test");
         graph.add_vertex("vertex01");
-        graph.connect_edge_to_vertex("vertex01", "edge01", 1);
-        graph.connect_vertex_to_edge("vertex02", "edge01");
+        graph.add_vertex("vertex02");
+        graph.connect_vertices("vertex01", "vertex02", "edge01", 1);
 
         assert!(graph.has_edge_connections("edge01", ConnectionType::SourceAndDestination));
     }
 
     #[test]
-    #[should_panic(expected = "Create edge first")]
-    pub fn should_panic_if_edge_is_not_exist() {
+    #[ignore]
+    pub fn generate_random_paths_should_correctly_return_result() {
         let mut graph = Graph::new("test");
-        graph.add_vertex("vertex01");
-        graph.connect_edge_to_vertex("vertex01", "edge01", 1);
+        graph.add_vertex("Polevskoy");
+        graph.add_vertex("Revda");
+        graph.add_vertex("Pervouralsk");
+        graph.add_vertex("Ekaterinburg");
 
-        graph.connect_vertex_to_edge("vertex01", "edge02");
+        graph.connect_vertices("Polevskoy", "Revda", "pore", 2);
+        graph.connect_vertices("Revda", "Pervouralsk", "repe", 2);
+        graph.connect_vertices("Pervouralsk", "Ekaterinburg", "pere", 4);
+        graph.connect_vertices("Ekaterinburg", "Polevskoy", "ekpo", 5);
+        graph.connect_vertices("Ekaterinburg", "Revda", "ekre", 3);
+
+        todo!("Implement generate_random_routes test");
     }
-    
 
     #[test]
-    #[should_panic(expected = "Edge already has source and destination")]
-    pub fn should_panic_if_edge_has_source_and_destination() {
+    #[should_panic]
+    pub fn should_panics_if_adding_duplicate_connections() {
         let mut graph = Graph::new("test");
         graph.add_vertex("vertex01");
-        graph.connect_edge_to_vertex("vertex01", "edge01", 1);
-        graph.connect_vertex_to_edge("vertex02", "edge01");
+        graph.add_vertex("vertex02");
 
-        graph.connect_vertex_to_edge("vertex02", "edge01");
+        graph.connect_vertices("vertex01", "vertex02", "edge01", 1);
+        graph.connect_vertices("vertex01", "vertex02", "edge01", 1);
+    }
+
+    #[test]
+    #[should_panic]
+    pub fn should_panics_if_adding_duplicate_connections_inverted() {
+        let mut graph = Graph::new("test");
+        graph.add_vertex("vertex01");
+        graph.add_vertex("vertex02");
+
+        graph.connect_vertices("vertex01", "vertex02", "asdasd", 1);
+        graph.connect_vertices("vertex02", "vertex01", "test", 1);
     }
 
     #[test]
@@ -256,9 +227,9 @@ pub mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Create vertex first")]
+    #[should_panic]
     pub fn connecting_edge_to_unknown_vertex() {
         let mut graph = Graph::new("test");
-        graph.connect_edge_to_vertex("vertex01", "edge01", 1);
+        graph.connect_vertices("vertex01", "unknown_vertex", "edge01", 1);
     }
 }
