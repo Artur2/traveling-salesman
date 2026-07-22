@@ -150,10 +150,31 @@ impl<'a> Graph<'a> {
     /// **Remarks**
     /// You need to add enough vertices to obtain random ways
     pub fn generate_random_routes(
-        self,
+        &self,
         source: &'a str,
         destination: &'a str,
     ) -> Vec<MutableVertexReferences<'a>> {
+        
+        let mut stack = vec![];
+
+        let starting_point = self.vertex_references.iter().find(|v| {
+            let borrowed_v = v.borrow();
+            borrowed_v.name == source
+        });
+
+        if starting_point.is_none() {
+            panic!("Create vertex first");
+        }
+
+        let starting_rc = starting_point.unwrap();
+        stack.push(starting_rc.clone());
+        
+        while !stack.is_empty() {
+            // create walking vector
+            // walk until dead end or destination
+            // create another vector with walked if we meet different ways
+        }
+
         todo!("Implement generate_random_routes")
     }
 }
@@ -186,12 +207,15 @@ pub mod tests {
         graph.add_vertex("Revda");
         graph.add_vertex("Pervouralsk");
         graph.add_vertex("Ekaterinburg");
+        graph.add_vertex("Sysert");
 
         graph.connect_vertices("Polevskoy", "Revda", "pore", 2);
         graph.connect_vertices("Revda", "Pervouralsk", "repe", 2);
         graph.connect_vertices("Pervouralsk", "Ekaterinburg", "pere", 4);
         graph.connect_vertices("Ekaterinburg", "Polevskoy", "ekpo", 5);
         graph.connect_vertices("Ekaterinburg", "Revda", "ekre", 3);
+        graph.connect_vertices("Sysert", "Polevskoy", "sypo", 3);
+        graph.connect_vertices("Ekaterinburg", "Sysert", "eksy", 3);
 
         todo!("Implement test");
     }
