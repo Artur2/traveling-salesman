@@ -72,12 +72,15 @@ impl<'a> Graph<'a> {
             panic!("Create vertex first");
         }
 
-        let mut source_vector = found_source_vector.unwrap().borrow_mut();
-        let mut destination_vector = found_destination_vector.unwrap().borrow_mut();
+        let source_vector_reference = found_source_vector.unwrap();
+        let destination_vector_reference = found_destination_vector.unwrap();
+
+        let mut source_vector = source_vector_reference.borrow_mut();
+        let mut destination_vector = destination_vector_reference.borrow_mut();
 
         let mut edge = Edge::new(edge_identifier, weight);
-        edge.source = Some(found_source_vector.unwrap().clone());
-        edge.destination = Some(found_destination_vector.unwrap().clone());
+        edge.source = Some(source_vector_reference.clone());
+        edge.destination = Some(destination_vector_reference.clone());
 
         let edge_rc = Rc::new(RefCell::new(edge));
         source_vector.edges.push(edge_rc.clone());
@@ -107,13 +110,16 @@ impl<'a> Graph<'a> {
     }
 
     pub fn has_connection_between_vertices(&self, source: &'a str, destination: &'a str) -> bool {
-        self.edge_references.iter().any(|edge| {
-            let borrowed_edge = edge.borrow();
-            let unwrapped_source = borrowed_edge.source.as_ref().unwrap();
-            let unwrapped_destination = borrowed_edge.destination.as_ref().unwrap();
+        self.edge_references.iter().map(|v| v.borrow()).any(|edge| {
+            if edge.source.is_none() || edge.destination.is_none() {
+                return false;
+            }
 
-            let borrowed_source = unwrapped_source.borrow();
-            let borrowed_destination = unwrapped_destination.borrow();
+            let source_rc = edge.source.as_ref().unwrap();
+            let destination_rc = edge.destination.as_ref().unwrap();
+
+            let borrowed_source = source_rc.borrow();
+            let borrowed_destination = destination_rc.borrow();
 
             (borrowed_source.name == source && borrowed_destination.name == destination)
                 || (borrowed_source.name == destination && borrowed_destination.name == source)
@@ -126,16 +132,17 @@ impl<'a> Graph<'a> {
         identifier: &'a str,
         connection_type: ConnectionType,
     ) -> bool {
-        let found = self.edge_references.iter().find(|e| {
-            let borrowed_e = e.borrow();
-            borrowed_e.identifier == identifier
-        });
+        let found = self
+            .edge_references
+            .iter()
+            .map(|v| v.borrow())
+            .find(|e| e.identifier == identifier);
 
         if found.is_none() {
             return false;
         }
 
-        let edge = found.unwrap().borrow();
+        let edge = found.unwrap();
         match connection_type {
             ConnectionType::None => edge.source.is_none() && edge.destination.is_none(),
             ConnectionType::Source => edge.source.is_some() && edge.destination.is_none(),
@@ -154,21 +161,21 @@ impl<'a> Graph<'a> {
         source: &'a str,
         destination: &'a str,
     ) -> Vec<MutableVertexReferences<'a>> {
-        
         let mut stack = vec![];
 
-        let starting_point = self.vertex_references.iter().find(|v| {
-            let borrowed_v = v.borrow();
-            borrowed_v.name == source
-        });
+        let starting_point = self
+            .vertex_references
+            .iter()
+            .map(|v| v.borrow())
+            .find(|v| v.name == source);
 
         if starting_point.is_none() {
             panic!("Create vertex first");
         }
 
-        let starting_rc = starting_point.unwrap();
-        stack.push(starting_rc.clone());
-        
+        let starting_rc = starting_point;
+        stack.push(starting_rc.as_ref().clone());
+
         while !stack.is_empty() {
             // create walking vector
             // walk until dead end or destination
