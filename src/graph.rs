@@ -193,7 +193,7 @@ pub mod tests {
         graph.connect_vertices("Ekaterinburg", "Polevskoy", "ekpo", 5);
         graph.connect_vertices("Ekaterinburg", "Revda", "ekre", 3);
 
-        todo!("Implement generate_random_routes test");
+        todo!("Implement test");
     }
 
     #[test]
