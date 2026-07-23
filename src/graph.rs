@@ -6,13 +6,13 @@ use crate::nodes::connection_type::ConnectionType;
 use crate::nodes::edge::Edge;
 use crate::nodes::vertex::Vertex;
 use crate::types::{MutableEdgeReferences, MutableVertexReferences};
-use rand::{Rng, random};
+use rand::{Rng};
 use std::cell::RefCell;
 use std::ops::Index;
 use std::rc::Rc;
 
 #[derive(Default)]
-pub struct Graph<'a> {
+pub(crate) struct Graph<'a> {
     /// Name of graph
     pub name: &'a str,
     /// Flat vertex references
@@ -22,7 +22,7 @@ pub struct Graph<'a> {
 }
 
 impl<'a> Graph<'a> {
-    pub fn new(name: &'a str) -> Self {
+    pub(crate) fn new(name: &'a str) -> Self {
         Graph {
             name,
             vertex_references: vec![],
@@ -31,7 +31,7 @@ impl<'a> Graph<'a> {
     }
 
     /// Only for disconnected vertices
-    pub fn add_vertex(&mut self, name: &'a str) {
+    pub(crate) fn add_vertex(&mut self, name: &'a str) {
         let found = self.vertex_references.iter().find(|v| {
             let borrowed_v = v.borrow();
             borrowed_v.name == name
@@ -48,7 +48,7 @@ impl<'a> Graph<'a> {
         }
     }
 
-    pub fn connect_vertices(
+    pub(crate) fn connect_vertices(
         &mut self,
         source_vector_name: &str,
         destination_vector_name: &str,
@@ -90,7 +90,7 @@ impl<'a> Graph<'a> {
     }
 
     /// Checking if graph has vertex by name
-    pub fn has_vertex(&self, name: &str) -> bool {
+    pub(crate) fn has_vertex(&self, name: &str) -> bool {
         let found = self.vertex_references.iter().find(|v| {
             let borrowed_v = v.borrow();
             borrowed_v.name == name
@@ -100,7 +100,7 @@ impl<'a> Graph<'a> {
     }
 
     /// Checking if graph has edge by identifier
-    pub fn has_edge(&self, identifier: &str) -> bool {
+    pub(crate) fn has_edge(&self, identifier: &str) -> bool {
         let found = self.edge_references.iter().find(|e| {
             let borrowed_e = e.borrow();
             borrowed_e.identifier == identifier
@@ -109,7 +109,7 @@ impl<'a> Graph<'a> {
         found.is_some()
     }
 
-    pub fn has_connection_between_vertices(&self, source: &str, destination: &str) -> bool {
+    pub(crate) fn has_connection_between_vertices(&self, source: &str, destination: &str) -> bool {
         self.edge_references.iter().map(|v| v.borrow()).any(|edge| {
             if edge.source.is_none() || edge.destination.is_none() {
                 return false;

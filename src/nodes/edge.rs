@@ -5,7 +5,7 @@ use std::rc::Rc;
 type OptionalVertexRc<'a> = Option<Rc<RefCell<Vertex<'a>>>>;
 
 #[derive(Default)]
-pub struct Edge<'a> {
+pub(crate) struct Edge<'a> {
     pub identifier: &'a str,
     pub weight: u32,
     pub source: OptionalVertexRc<'a>,
