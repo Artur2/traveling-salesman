@@ -16,7 +16,7 @@ impl<'a> Vertex<'a> {
         }
     }
 
-    pub fn has_connection(&self, destination_vector_name: &'a str) -> bool {
+    pub fn has_connection(&self, destination_vector_name: &str) -> bool {
         self.edges.iter().any(|edge| {
             let borrowed_edge = edge.borrow();
             if let Some(destination) = borrowed_edge.destination.clone() {

@@ -52,8 +52,8 @@ impl<'a> Graph<'a> {
 
     pub fn connect_vertices(
         &mut self,
-        source_vector_name: &'a str,
-        destination_vector_name: &'a str,
+        source_vector_name: &str,
+        destination_vector_name: &str,
         edge_identifier: &'a str,
         weight: u32,
     ) {
@@ -92,7 +92,7 @@ impl<'a> Graph<'a> {
     }
 
     /// Checking if graph has vertex by name
-    pub fn has_vertex(&self, name: &'a str) -> bool {
+    pub fn has_vertex(&self, name: &str) -> bool {
         let found = self.vertex_references.iter().find(|v| {
             let borrowed_v = v.borrow();
             borrowed_v.name == name
@@ -102,7 +102,7 @@ impl<'a> Graph<'a> {
     }
 
     /// Checking if graph has edge by identifier
-    pub fn has_edge(&self, identifier: &'a str) -> bool {
+    pub fn has_edge(&self, identifier: &str) -> bool {
         let found = self.edge_references.iter().find(|e| {
             let borrowed_e = e.borrow();
             borrowed_e.identifier == identifier
@@ -111,7 +111,7 @@ impl<'a> Graph<'a> {
         found.is_some()
     }
 
-    pub fn has_connection_between_vertices(&self, source: &'a str, destination: &'a str) -> bool {
+    pub fn has_connection_between_vertices(&self, source: &str, destination: &str) -> bool {
         self.edge_references.iter().map(|v| v.borrow()).any(|edge| {
             if edge.source.is_none() || edge.destination.is_none() {
                 return false;
@@ -131,7 +131,7 @@ impl<'a> Graph<'a> {
     /// Checking if edge has connections(source or/and destination or none)
     pub fn has_edge_connections(
         &self,
-        identifier: &'a str,
+        identifier: &str,
         connection_type: ConnectionType,
     ) -> bool {
         let found = self
@@ -190,7 +190,7 @@ impl<'a> Graph<'a> {
     /// TODO: Move to another struct and check visited vertices instead of edges
     fn generate_random_route<'b>(
         starting_point: Rc<RefCell<Vertex<'b>>>,
-        destination_identity: &'b str,
+        destination_identity: &str,
     ) -> Option<Vec<Rc<RefCell<Vertex<'b>>>>> {
         let mut stack = vec![];
         let mut visited_vertices = vec![];
@@ -256,10 +256,10 @@ impl<'a> Graph<'a> {
         Some(visited_vertices)
     }
 
-    fn is_fully_fit<'input>(
+    fn is_fully_fit(
         vector: &Vec<Rc<RefCell<Vertex>>>,
-        source: &'input str,
-        destination: &'input str,
+        source: &str,
+        destination: &str,
     ) -> bool {
         if vector.len() == 0 || vector.len() == 1 {
             return false;
