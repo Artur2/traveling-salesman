@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 #[derive(Default)]
-pub struct Vertex<'a> {
+pub(crate) struct Vertex<'a> {
     pub name: &'a str,
     pub edges: Vec<Rc<RefCell<Edge<'a>>>>,
 }

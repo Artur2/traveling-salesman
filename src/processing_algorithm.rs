@@ -6,10 +6,11 @@ use std::ops::Index;
 use std::rc::Rc;
 
 #[derive(Default)]
-pub struct ProcessingAlgorithm;
+pub(crate) struct ProcessingAlgorithm;
 
 impl ProcessingAlgorithm {
-    pub fn generate_random_routes<'a>(
+    
+    pub(crate) fn generate_random_routes<'a>(
         &self,
         vertices: &MutableVertexReferences<'a>,
         source: &str,
@@ -110,6 +111,7 @@ impl ProcessingAlgorithm {
 
 #[allow(unused_imports)]
 mod tests {
+    use std::time::Instant;
     use super::*;
     use crate::graph::Graph;
 
@@ -131,13 +133,14 @@ mod tests {
         graph.connect_vertices("Ekaterinburg", "Sysert", "eksy", 3);
 
         let processing_algorithm = ProcessingAlgorithm::default();
+        let time = Instant::now();
         let random_paths = processing_algorithm.generate_random_routes(
             &graph.vertex_references,
             "Polevskoy",
             "Pervouralsk",
-            10,
+            1_000_000,
         );
-
+        let elapsed = time.elapsed();
         let fully_fit_paths = random_paths.iter().count();
 
         assert!(fully_fit_paths > 0);
