@@ -12,3 +12,4 @@ lto = true
 
 [dependencies]
 rand = "0.4.6"
+mimalloc = "0.1.52"

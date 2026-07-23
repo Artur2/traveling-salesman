@@ -187,7 +187,7 @@ impl<'a> Graph<'a> {
         random_paths
     }
 
-    /// TODO: Move to another struct
+    /// TODO: Move to another struct and check visited vertices instead of edges
     fn generate_random_route<'b>(
         starting_point: Rc<RefCell<Vertex<'b>>>,
         destination_identity: &'b str,
@@ -310,7 +310,7 @@ pub mod tests {
         graph.connect_vertices("Sysert", "Polevskoy", "sypo", 3);
         graph.connect_vertices("Ekaterinburg", "Sysert", "eksy", 3);
 
-        let random_paths = graph.generate_random_routes("Polevskoy", "Pervouralsk", 10);
+        let random_paths = graph.generate_random_routes("Polevskoy", "Pervouralsk", 10000);
 
         let fully_fit_paths = random_paths
             .iter()
