@@ -256,11 +256,15 @@ impl<'a> Graph<'a> {
         Some(visited_vertices)
     }
 
-    fn is_fully_fit(
+    fn is_fully_fit<'input>(
         vector: &Vec<Rc<RefCell<Vertex>>>,
-        source: &'a str,
-        destination: &'a str,
+        source: &'input str,
+        destination: &'input str,
     ) -> bool {
+        if vector.len() == 0 || vector.len() == 1 {
+            return false;
+        }
+
         let first = vector.first().unwrap();
         let last = vector.last().unwrap();
 
