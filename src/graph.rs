@@ -158,6 +158,7 @@ impl<'a> Graph<'a> {
     /// Generates random routes from source to destination
     /// **Remarks**
     /// You need to add enough vertices to obtain random ways
+    /// TODO: Move to another struct
     pub fn generate_random_routes(
         &self,
         source: &'a str,
@@ -186,6 +187,7 @@ impl<'a> Graph<'a> {
         random_paths
     }
 
+    /// TODO: Move to another struct
     fn generate_random_route<'b>(
         starting_point: Rc<RefCell<Vertex<'b>>>,
         destination_identity: &'b str,
@@ -229,7 +231,7 @@ impl<'a> Graph<'a> {
                     visited_edges.push(borrowed_edge.identifier);
                 } else {
                     let length = vertex.edges.len();
-                    let random_choice = rand::thread_rng().gen_range(0, length - 1);
+                    let random_choice: usize = rand::thread_rng().gen_range(0, length - 1);
                     let edge = vertex.edges.index(random_choice);
                     let borrowed_edge = edge.borrow();
 
