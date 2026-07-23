@@ -5,7 +5,9 @@
 use crate::nodes::connection_type::ConnectionType;
 use crate::nodes::edge::Edge;
 use crate::nodes::vertex::Vertex;
+use rand::{Rng, random};
 use std::cell::RefCell;
+use std::ops::Index;
 use std::rc::Rc;
 
 type MutableVertexReferences<'a> = Vec<Rc<RefCell<Vertex<'a>>>>;
@@ -160,29 +162,107 @@ impl<'a> Graph<'a> {
         &self,
         source: &'a str,
         destination: &'a str,
+        amount_of_generations: i32
     ) -> Vec<MutableVertexReferences<'a>> {
-        let mut stack = vec![];
-
-        let starting_point = self
-            .vertex_references
-            .iter()
-            .map(|v| v.borrow())
-            .find(|v| v.name == source);
+        let starting_point = self.vertex_references.iter().find(|v| {
+            let borrowed_v = v.borrow();
+            borrowed_v.name == source
+        });
 
         if starting_point.is_none() {
             panic!("Create vertex first");
         }
 
-        let starting_rc = starting_point;
-        stack.push(starting_rc.as_ref().clone());
+        let mut random_paths = vec![];
 
-        while !stack.is_empty() {
-            // create walking vector
-            // walk until dead end or destination
-            // create another vector with walked if we meet different ways
+        for _ in 0..amount_of_generations {
+            if let Some(path) =
+                Self::generate_random_route(starting_point.unwrap().clone(), destination)
+            {
+                random_paths.push(path)
+            }
         }
 
-        todo!("Implement generate_random_routes")
+        random_paths
+    }
+
+    fn generate_random_route<'b>(
+        starting_point: Rc<RefCell<Vertex<'b>>>,
+        destination_identity: &'b str,
+    ) -> Option<Vec<Rc<RefCell<Vertex<'b>>>>> {
+        let mut stack = vec![];
+        let mut visited_vertices = vec![];
+        let mut visited_edges: Vec<&str> = vec![];
+        let starting_rc = starting_point;
+
+        stack.push(starting_rc.clone());
+
+        while !stack.is_empty() {
+            if let Some(current) = stack.pop() {
+                let vertex = current.borrow();
+                visited_vertices.push(current.clone());
+
+                if vertex.name == destination_identity {
+                    return Some(visited_vertices);
+                }
+
+                if vertex.edges.len() == 0 {
+                    // vertex disconnected?
+                    return None;
+                }
+
+                if vertex.edges.len() == 1 {
+                    let edge = vertex.edges.index(0);
+                    let borrowed_edge = edge.borrow();
+
+                    if let Some(vertex) = borrowed_edge.destination.clone() {
+                        stack.push(vertex);
+                    }
+
+                    if visited_edges
+                        .iter()
+                        .any(|edge| edge.to_string() == borrowed_edge.identifier)
+                    {
+                        return None;
+                    }
+
+                    visited_edges.push(borrowed_edge.identifier);
+                } else {
+                    let length = vertex.edges.len();
+                    let random_choice = rand::thread_rng().gen_range(0, length - 1);
+                    let edge = vertex.edges.index(random_choice);
+                    let borrowed_edge = edge.borrow();
+
+                    if let Some(vertex) = borrowed_edge.destination.clone() {
+                        stack.push(vertex);
+                    }
+
+                    if visited_edges
+                        .iter()
+                        .any(|edge| edge.to_string() == borrowed_edge.identifier)
+                    {
+                        return None;
+                    }
+
+                    visited_edges.push(borrowed_edge.identifier);
+                }
+            } else {
+                return None;
+            }
+        }
+
+        Some(visited_vertices)
+    }
+
+    fn is_fully_fit(
+        vector: &Vec<Rc<RefCell<Vertex>>>,
+        source: &'a str,
+        destination: &'a str,
+    ) -> bool {
+        let first = vector.first().unwrap();
+        let last = vector.last().unwrap();
+
+        first.borrow().name == source && last.borrow().name == destination
     }
 }
 
@@ -219,12 +299,19 @@ pub mod tests {
         graph.connect_vertices("Polevskoy", "Revda", "pore", 2);
         graph.connect_vertices("Revda", "Pervouralsk", "repe", 2);
         graph.connect_vertices("Pervouralsk", "Ekaterinburg", "pere", 4);
-        graph.connect_vertices("Ekaterinburg", "Polevskoy", "ekpo", 5);
+        graph.connect_vertices("Polevskoy", "Ekaterinburg", "poek", 5);
         graph.connect_vertices("Ekaterinburg", "Revda", "ekre", 3);
         graph.connect_vertices("Sysert", "Polevskoy", "sypo", 3);
         graph.connect_vertices("Ekaterinburg", "Sysert", "eksy", 3);
 
-        todo!("Implement test");
+        let random_paths = graph.generate_random_routes("Polevskoy", "Pervouralsk", 10);
+
+        let fully_fit_paths = random_paths
+            .iter()
+            .filter(|path| Graph::is_fully_fit(path, "Polevskoy", "Pervouralsk"))
+            .count();
+
+        assert!(fully_fit_paths > 0);
     }
 
     #[test]
