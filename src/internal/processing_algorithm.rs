@@ -16,7 +16,7 @@ impl ProcessingAlgorithm {
         vertices: &WeakVertexReferences,
         source: &str,
         destination: &str,
-        amount_of_generations: i32,
+        amount_of_generations: u32,
     ) -> Vec<WeakVertexReferences> {
         let starting_point = vertices.iter().find(|v| match v.upgrade() {
             None => false,
@@ -514,7 +514,7 @@ mod tests {
 
         let elapsed_fit = time.elapsed().as_micros();
         println!(
-            "Generated in {:?}, fitted in {:?}",
+            "Generated in {:?} μs, fitted in {:?} μs",
             elapsed_generation, elapsed_fit
         );
     }
