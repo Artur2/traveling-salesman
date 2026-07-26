@@ -3,13 +3,13 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 #[derive(Default)]
-pub(crate) struct Vertex<'a> {
-    pub name: &'a str,
-    pub edges: Vec<Rc<RefCell<Edge<'a>>>>,
+pub(crate) struct Vertex {
+    pub name: String,
+    pub edges: Vec<Rc<RefCell<Edge>>>,
 }
 
-impl<'a> Vertex<'a> {
-    pub fn new(name: &'a str) -> Self {
+impl Vertex {
+    pub fn new(name: String) -> Self {
         Vertex {
             name,
             edges: vec![],
@@ -30,5 +30,26 @@ impl<'a> Vertex<'a> {
 
             return false;
         })
+    }
+
+    pub fn add_connection(
+        source_vertex: &Rc<RefCell<Vertex>>,
+        destination_vertex: &Rc<RefCell<Vertex>>,
+        weight: u32,
+    ) {
+        let mut edge_name: String = Default::default();
+        {
+            let destination_vertex_borrowed = destination_vertex.borrow();
+            let source_vertex_borrowed = source_vertex.borrow();
+            edge_name = format!("{}-{}", source_vertex_borrowed.name, destination_vertex_borrowed.name);
+        }
+
+        let mut new_edge = Edge::new(edge_name, weight);
+        new_edge.source = Some(source_vertex.clone());
+        new_edge.destination = Some(destination_vertex.clone());
+
+        let edge_rc = Rc::new(RefCell::new(new_edge));
+        source_vertex.borrow_mut().edges.push(edge_rc.clone());
+        destination_vertex.borrow_mut().edges.push(edge_rc);
     }
 }
