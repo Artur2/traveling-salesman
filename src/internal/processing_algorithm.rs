@@ -94,10 +94,10 @@ impl ProcessingAlgorithm {
 
             // Searching indexes of same route in right and left vertices
             let mut left_index = 0;
-            _ = pair.left.iter().find(|vertex| {
+            _ = pair.left.iter().any(|vertex| {
+                left_index += 1;
                 let borrowed_v = vertex.borrow();
                 let right_vertex = random_vertex.borrow();
-                left_index += 1;
                 borrowed_v.name == right_vertex.name
             });
 
@@ -111,8 +111,8 @@ impl ProcessingAlgorithm {
 
             let right_slice = pair.right[..right_index].to_vec();
             let left_slice = pair.left[left_index..].to_vec();
-            let mut index_to_remove_edge_in_right = 0;
-            let mut index_to_remove_edge_in_left = 0;
+            let mut index_to_remove_edge_in_right: i32 = -1;
+            let mut index_to_remove_edge_in_left: i32 = -1;
             let mut weight = 0;
 
             // Searching index of edges in left, right slice to remove
@@ -155,10 +155,10 @@ impl ProcessingAlgorithm {
                 let mut borrowed_last = right_last_vertex.borrow_mut();
                 let mut borrowed_first = left_first_vertex.borrow_mut();
 
-                borrowed_last.edges.remove(index_to_remove_edge_in_right);
-                borrowed_first.edges.remove(index_to_remove_edge_in_left);
+                borrowed_last.edges.remove(index_to_remove_edge_in_right as usize);
+                borrowed_first.edges.remove(index_to_remove_edge_in_left as usize);
             }
-            
+
             // Adding new edge between two slices
             Vertex::add_connection(right_last_vertex, left_first_vertex, weight);
 
@@ -336,7 +336,7 @@ mod tests {
             &graph.vertex_references,
             "Polevskoy",
             "Pervouralsk",
-            10,
+            10000,
         );
 
         let result = processing_algorithm.generate_pairs(&random_routes);
