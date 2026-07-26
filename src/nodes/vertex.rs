@@ -13,7 +13,7 @@ pub(crate) struct Vertex {
 impl Display for Vertex {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut formatted = format!("{} with edges: ", self.name);
-        for (_i, edge) in self.edges.iter().enumerate() {
+        for edge in self.edges.iter() {
             match edge.upgrade() {
                 None => {}
                 Some(edge) => {

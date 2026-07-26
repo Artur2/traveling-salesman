@@ -36,7 +36,7 @@ impl PathResolver {
                 .graph
                 .vertex_references
                 .iter()
-                .map(|f| Rc::downgrade(f))
+                .map(Rc::downgrade)
                 .collect(),
             source,
             destination,

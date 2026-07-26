@@ -349,8 +349,7 @@ impl ProcessingAlgorithm {
     fn get_fit_value(&self, route: &WeakVertexReferences) -> u32 {
         let route_path = route
             .iter()
-            .map(|f| f.upgrade())
-            .flatten()
+            .filter_map(|f| f.upgrade())
             .map(|vertex| vertex.borrow().name.clone())
             .collect::<Vec<String>>();
 
