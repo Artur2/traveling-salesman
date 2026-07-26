@@ -34,6 +34,7 @@ impl ProcessingAlgorithm {
 
         for _ in 0..amount_of_generations {
             if let Some(path) = self.generate_random_route(starting_point.unwrap(), destination) {
+                // TODO: Add new vectors with one edge between
                 random_paths.push(path)
             }
         }
