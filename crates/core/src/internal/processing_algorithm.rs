@@ -1,6 +1,6 @@
-use crate::nodes::graph::Graph;
 use crate::internal::mutable_vertex_pair::MutableVertexPair;
 use crate::internal::types::WeakVertexReferences;
+use crate::nodes::graph::Graph;
 use crate::nodes::vertex::Vertex;
 use rand::{Rng, thread_rng};
 use std::cell::RefCell;
@@ -378,13 +378,13 @@ impl ProcessingAlgorithm {
                                 (edge.source.as_ref(), edge.destination.as_ref())
                                 && let (Some(source), Some(destination)) =
                                     (source_unwrapped.upgrade(), destination_unwrapped.upgrade())
-                                {
-                                    let source_borrowed = source.borrow();
-                                    let destination_borrowed = destination.borrow();
+                            {
+                                let source_borrowed = source.borrow();
+                                let destination_borrowed = destination.borrow();
 
-                                    return source_borrowed.name == current_vertex_name
-                                        && destination_borrowed.name == next_vertex_name;
-                                }
+                                return source_borrowed.name == current_vertex_name
+                                    && destination_borrowed.name == next_vertex_name;
+                            }
 
                             false
                         });
@@ -513,5 +513,39 @@ mod tests {
             "Generated in {:?} μs, fitted in {:?} μs",
             elapsed_generation, elapsed_fit
         );
+    }
+
+    #[test]
+    pub fn crossover_should_work_as_expected() {
+        let mut graph = Graph::new("test".to_owned());
+        graph.add_vertex("A".to_owned());
+        graph.add_vertex("B".to_owned());
+        graph.add_vertex("C".to_owned());
+        graph.add_vertex("D".to_owned());
+        graph.add_vertex("E".to_owned());
+
+        graph.connect_vertices("A".to_owned(), "B".to_owned(), 2);
+        graph.connect_vertices("B".to_owned(), "C".to_owned(), 2);
+        graph.connect_vertices("C".to_owned(), "D".to_owned(), 2);
+        graph.connect_vertices("D".to_owned(), "E".to_owned(), 2);
+        graph.connect_vertices("B".to_owned(), "D".to_owned(), 4);
+        graph.connect_vertices("B".to_owned(), "E".to_owned(), 4);
+        graph.connect_vertices("C".to_owned(), "E".to_owned(), 4);
+
+        let processing_algorithm = ProcessingAlgorithm::default();
+        let random_routes = processing_algorithm.generate_random_routes(
+            &graph
+                .vertex_references
+                .iter()
+                .map(|f| Rc::downgrade(&f))
+                .collect(),
+            "A",
+            "E",
+            100,
+        );
+        let pairs = processing_algorithm.generate_pairs(&random_routes);
+        let result = processing_algorithm.crossover(&mut graph, pairs);
+
+        assert!(result.len() > 0);
     }
 }
