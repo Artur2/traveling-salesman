@@ -189,7 +189,7 @@ impl ProcessingAlgorithm {
                                         if equal {
                                             weight = borrowed_edge.weight;
                                         }
-                                        return equal;
+                                        equal
                                     }
                                 },
                             }
@@ -286,7 +286,7 @@ impl ProcessingAlgorithm {
                             return Some(resulting_vertices);
                         }
 
-                        if vertex.edges.len() == 0 {
+                        if vertex.edges.is_empty() {
                             // vertex disconnected?
                             return None;
                         }
@@ -350,8 +350,7 @@ impl ProcessingAlgorithm {
         let route_path = route
             .iter()
             .map(|f| f.upgrade())
-            .filter(|f| f.is_some())
-            .map(|f| f.unwrap())
+            .flatten()
             .map(|vertex| vertex.borrow().name.clone())
             .collect::<Vec<String>>();
 
@@ -378,8 +377,7 @@ impl ProcessingAlgorithm {
 
                             if let (Some(source_unwrapped), Some(destination_unwrapped)) =
                                 (edge.source.as_ref(), edge.destination.as_ref())
-                            {
-                                if let (Some(source), Some(destination)) =
+                                && let (Some(source), Some(destination)) =
                                     (source_unwrapped.upgrade(), destination_unwrapped.upgrade())
                                 {
                                     let source_borrowed = source.borrow();
@@ -388,9 +386,8 @@ impl ProcessingAlgorithm {
                                     return source_borrowed.name == current_vertex_name
                                         && destination_borrowed.name == next_vertex_name;
                                 }
-                            }
 
-                            return false;
+                            false
                         });
 
                     if let Some(edge) = edge {

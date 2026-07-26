@@ -78,8 +78,8 @@ impl Graph {
         let mut destination_vector = destination_vector_reference.borrow_mut();
         let edge_identifier = format!("{}-{}", source_vector.name, destination_vector.name);
         let mut edge = Edge::new(edge_identifier.to_owned(), weight);
-        edge.source = Some(Rc::downgrade(&source_vector_reference));
-        edge.destination = Some(Rc::downgrade(&destination_vector_reference));
+        edge.source = Some(Rc::downgrade(source_vector_reference));
+        edge.destination = Some(Rc::downgrade(destination_vector_reference));
 
         let edge_rc = Rc::new(RefCell::new(edge));
         let edge_weak = Rc::downgrade(&edge_rc);
@@ -136,7 +136,7 @@ impl Graph {
                         && &borrowed_destination.name == source);
             }
 
-            return false;
+            false
         })
     }
 

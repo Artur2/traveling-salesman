@@ -13,11 +13,11 @@ pub(crate) struct Vertex {
 impl Display for Vertex {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut formatted = format!("{} with edges: ", self.name);
-        for (i, edge) in self.edges.iter().enumerate() {
+        for (_i, edge) in self.edges.iter().enumerate() {
             match edge.upgrade() {
                 None => {}
                 Some(edge) => {
-                    formatted += format!("{}", edge.borrow().identifier).as_str();
+                    formatted += edge.borrow().identifier.to_string().as_str();
                 }
             }
         }
@@ -60,7 +60,7 @@ impl Vertex {
                     }
                 }
 
-                return has;
+                has
             }
             None => false,
         })
@@ -110,7 +110,7 @@ impl Vertex {
             graph.edge_references.push(edge_rc.clone());
             Rc::downgrade(&edge_rc)
         } else {
-            Rc::downgrade(&existing.unwrap())
+            Rc::downgrade(existing.unwrap())
         };
 
         let mut source_modify = false;
