@@ -1,4 +1,4 @@
-use crate::graph::Graph;
+use crate::nodes::graph::Graph;
 use crate::nodes::edge::Edge;
 use std::cell::RefCell;
 use std::fmt::{Display, Formatter};

@@ -1,4 +1,4 @@
-use crate::graph::Graph;
+use crate::nodes::graph::Graph;
 use crate::internal::mutable_vertex_pair::MutableVertexPair;
 use crate::internal::types::WeakVertexReferences;
 use crate::nodes::vertex::Vertex;
@@ -410,7 +410,7 @@ impl ProcessingAlgorithm {
 #[allow(unused_imports)]
 mod tests {
     use super::*;
-    use crate::graph::Graph;
+    use crate::nodes::graph::Graph;
     use std::time::Instant;
 
     fn create_graph() -> Graph {

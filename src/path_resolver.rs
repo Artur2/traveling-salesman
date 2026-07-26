@@ -1,4 +1,4 @@
-use crate::graph::Graph;
+use crate::nodes::graph::Graph;
 use crate::internal::processing_algorithm::ProcessingAlgorithm;
 use std::rc::Rc;
 
