@@ -29,9 +29,7 @@ impl ProcessingAlgorithm {
         let mut random_paths = vec![];
 
         for _ in 0..amount_of_generations {
-            if let Some(path) =
-                self.generate_random_route(starting_point.unwrap(), destination)
-            {
+            if let Some(path) = self.generate_random_route(starting_point.unwrap(), destination) {
                 random_paths.push(path)
             }
         }
@@ -70,10 +68,7 @@ impl ProcessingAlgorithm {
         return_vertices
     }
 
-    pub(crate) fn crossover(
-        &self,
-        pairs: Vec<MutableVertexPair>,
-    ) -> Vec<MutableVertexReferences> {
+    pub(crate) fn crossover(&self, pairs: Vec<MutableVertexPair>) -> Vec<MutableVertexReferences> {
         let mut crossed: Vec<MutableVertexReferences> = vec![];
 
         for pair in pairs {
@@ -127,36 +122,33 @@ impl ProcessingAlgorithm {
                 let borrowed_last = right_last_vertex.borrow();
                 let borrowed_first = left_first_vertex.borrow();
 
-                _ = borrowed_last.edges.iter().map(|e| e.borrow())
-                    .find(|edge| {
-                        index_to_remove_edge_in_right += 1;
-                        let destination_vertex = edge.destination.as_ref();
-                        match destination_vertex {
-                            None => false,
-                            Some(v) => {
-                                let borrowed = v.borrow();
-                                let equal = borrowed.name == borrowed_first.name;
-                                if equal {
-                                    weight = edge.weight;
-                                }
-                                return equal;
+                _ = borrowed_last.edges.iter().map(|e| e.borrow()).any(|edge| {
+                    index_to_remove_edge_in_right += 1;
+                    let destination_vertex = edge.destination.as_ref();
+                    match destination_vertex {
+                        None => false,
+                        Some(v) => {
+                            let borrowed = v.borrow();
+                            let equal = borrowed.name == borrowed_first.name;
+                            if equal {
+                                weight = edge.weight;
                             }
+                            return equal;
                         }
-                    });
+                    }
+                });
 
-
-                _ = borrowed_first.edges.iter().map(|e| e.borrow())
-                    .find(|edge| {
-                        index_to_remove_edge_in_left += 1;
-                        let source_vertex = edge.source.as_ref();
-                        match source_vertex {
-                            None => false,
-                            Some(v) => {
-                                let borrowed = v.borrow();
-                                borrowed.name == borrowed_last.name
-                            }
+                _ = borrowed_first.edges.iter().map(|e| e.borrow()).any(|edge| {
+                    index_to_remove_edge_in_left += 1;
+                    let source_vertex = edge.source.as_ref();
+                    match source_vertex {
+                        None => false,
+                        Some(v) => {
+                            let borrowed = v.borrow();
+                            borrowed.name == borrowed_last.name
                         }
-                    });
+                    }
+                });
             }
             // Removing redundant edges
             {
@@ -166,7 +158,8 @@ impl ProcessingAlgorithm {
                 borrowed_last.edges.remove(index_to_remove_edge_in_right);
                 borrowed_first.edges.remove(index_to_remove_edge_in_left);
             }
-
+            
+            // Adding new edge between two slices
             Vertex::add_connection(right_last_vertex, left_first_vertex, weight);
 
             let mut new_vector = vec![];
@@ -267,13 +260,48 @@ mod tests {
         graph.add_vertex("Ekaterinburg".to_owned());
         graph.add_vertex("Sysert".to_owned());
 
-        graph.connect_vertices("Polevskoy".to_owned(), "Revda".to_owned(), "pore".to_owned(), 2);
-        graph.connect_vertices("Revda".to_owned(), "Pervouralsk".to_owned(), "repe".to_owned(), 2);
-        graph.connect_vertices("Pervouralsk".to_owned(), "Ekaterinburg".to_owned(), "pere".to_owned(), 4);
-        graph.connect_vertices("Polevskoy".to_owned(), "Ekaterinburg".to_owned(), "poek".to_owned(), 5);
-        graph.connect_vertices("Ekaterinburg".to_owned(), "Revda".to_owned(), "ekre".to_owned(), 3);
-        graph.connect_vertices("Sysert".to_owned(), "Polevskoy".to_owned(), "sypo".to_owned(), 3);
-        graph.connect_vertices("Ekaterinburg".to_owned(), "Sysert".to_owned(), "eksy".to_owned(), 3);
+        graph.connect_vertices(
+            "Polevskoy".to_owned(),
+            "Revda".to_owned(),
+            "pore".to_owned(),
+            2,
+        );
+        graph.connect_vertices(
+            "Revda".to_owned(),
+            "Pervouralsk".to_owned(),
+            "repe".to_owned(),
+            2,
+        );
+        graph.connect_vertices(
+            "Pervouralsk".to_owned(),
+            "Ekaterinburg".to_owned(),
+            "pere".to_owned(),
+            4,
+        );
+        graph.connect_vertices(
+            "Polevskoy".to_owned(),
+            "Ekaterinburg".to_owned(),
+            "poek".to_owned(),
+            5,
+        );
+        graph.connect_vertices(
+            "Ekaterinburg".to_owned(),
+            "Revda".to_owned(),
+            "ekre".to_owned(),
+            3,
+        );
+        graph.connect_vertices(
+            "Sysert".to_owned(),
+            "Polevskoy".to_owned(),
+            "sypo".to_owned(),
+            3,
+        );
+        graph.connect_vertices(
+            "Ekaterinburg".to_owned(),
+            "Sysert".to_owned(),
+            "eksy".to_owned(),
+            3,
+        );
 
         graph
     }
@@ -319,6 +347,7 @@ mod tests {
         );
 
         let result = processing_algorithm.generate_pairs(&random_routes);
-        processing_algorithm.crossover(result);
+        let crossed = processing_algorithm.crossover(result);
+        assert!(crossed.len() > 0);
     }
 }
