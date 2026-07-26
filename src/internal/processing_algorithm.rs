@@ -345,12 +345,73 @@ impl ProcessingAlgorithm {
 
         Some(resulting_vertices)
     }
+
+    fn get_fit_value(&self, route: &WeakVertexReferences) -> u32 {
+        let route_path = route
+            .iter()
+            .map(|f| f.upgrade())
+            .filter(|f| f.is_some())
+            .map(|f| f.unwrap())
+            .map(|vertex| vertex.borrow().name.clone())
+            .collect::<Vec<String>>();
+
+        let mut fit = 0;
+        route.iter().enumerate().for_each(|(index, vertex)| {
+            if index + 1 >= route_path.len() {
+                return;
+            }
+            let current_vertex_name = route_path[index].clone();
+            let next_vertex_name = route_path[index + 1].clone();
+
+            match vertex.upgrade() {
+                None => panic!("Cant reach out vertex"),
+                Some(vertex_upgraded) => {
+                    let borrowed = vertex_upgraded.borrow();
+
+                    let edge = borrowed
+                        .edges
+                        .iter()
+                        .map(|p| p.upgrade())
+                        .map(|p| p.unwrap())
+                        .find(|p| {
+                            let edge = p.borrow();
+
+                            if let (Some(source_unwrapped), Some(destination_unwrapped)) =
+                                (edge.source.as_ref(), edge.destination.as_ref())
+                            {
+                                if let (Some(source), Some(destination)) =
+                                    (source_unwrapped.upgrade(), destination_unwrapped.upgrade())
+                                {
+                                    let source_borrowed = source.borrow();
+                                    let destination_borrowed = destination.borrow();
+
+                                    return source_borrowed.name == current_vertex_name
+                                        && destination_borrowed.name == next_vertex_name;
+                                }
+                            }
+
+                            return false;
+                        });
+
+                    if let Some(edge) = edge {
+                        let borrowed = edge.borrow();
+                        fit += borrowed.weight;
+                    } else {
+                        panic!("Cant reach out edge");
+                    }
+                }
+            }
+        });
+
+        fit
+    }
 }
 
 #[allow(unused_imports)]
 mod tests {
     use super::*;
     use crate::graph::Graph;
+    use std::time::Instant;
 
     fn create_graph() -> Graph {
         let mut graph = Graph::new("test".to_owned());
@@ -426,5 +487,35 @@ mod tests {
         let result = processing_algorithm.generate_pairs(&random_routes);
         let crossed = processing_algorithm.crossover(graph, result);
         assert!(crossed.len() > 0);
+    }
+
+    #[test]
+    pub fn get_fit_value_should_correct_pass_through() {
+        let graph = &mut create_graph();
+        let processing_algorithm = ProcessingAlgorithm::default();
+        let mut time = Instant::now();
+        let random_routes = processing_algorithm.generate_random_routes(
+            &graph
+                .vertex_references
+                .iter()
+                .map(|f| Rc::downgrade(&f))
+                .collect(),
+            "Polevskoy",
+            "Pervouralsk",
+            100,
+        );
+
+        let elapsed_generation = time.elapsed().as_micros();
+        time = Instant::now();
+        random_routes.iter().for_each(|r| {
+            let fit_value = processing_algorithm.get_fit_value(r);
+            assert!(fit_value > 0);
+        });
+
+        let elapsed_fit = time.elapsed().as_micros();
+        println!(
+            "Generated in {:?}, fitted in {:?}",
+            elapsed_generation, elapsed_fit
+        );
     }
 }
