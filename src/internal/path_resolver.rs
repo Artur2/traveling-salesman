@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use crate::graph::Graph;
 use crate::internal::processing_algorithm::ProcessingAlgorithm;
 
@@ -36,15 +37,15 @@ impl PathResolver {
     }
 
     #[must_use = "to get result of GA algorithm to get optimal way through vertices/edges"]
-    pub fn resolve_optimal_path(&self, source: &str, destination: &str) -> Vec<&str> {
+    pub fn resolve_optimal_path(&mut self, source: &str, destination: &str) -> Vec<&str> {
         let random_paths = self.processing_algorithm.generate_random_routes(
-            &self.graph.vertex_references,
+            &self.graph.vertex_references.iter().map(|f| Rc::downgrade(&f)).collect(),
             source,
             destination,
             100,
         );
         let pairs = self.processing_algorithm.generate_pairs(&random_paths);
-        let crossed = self.processing_algorithm.crossover(pairs);
+        let crossed = self.processing_algorithm.crossover(&mut self.graph,pairs);
 
         todo!("Implement optimal path")
     }

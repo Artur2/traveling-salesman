@@ -1,8 +1,8 @@
 use crate::nodes::vertex::Vertex;
 use std::cell::RefCell;
-use std::rc::Rc;
+use std::rc::Weak;
 
-type OptionalVertexRc = Option<Rc<RefCell<Vertex>>>;
+type OptionalVertexRc = Option<Weak<RefCell<Vertex>>>;
 
 #[derive(Default)]
 pub(crate) struct Edge {

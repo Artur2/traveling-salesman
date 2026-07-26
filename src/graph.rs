@@ -9,7 +9,7 @@ use crate::nodes::vertex::Vertex;
 use rand::Rng;
 use std::cell::RefCell;
 use std::ops::Index;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 #[derive(Default)]
 pub(crate) struct Graph {
@@ -78,12 +78,13 @@ impl Graph {
         let mut destination_vector = destination_vector_reference.borrow_mut();
         let edge_identifier = format!("{}-{}", source_vector.name, destination_vector.name);
         let mut edge = Edge::new(edge_identifier.to_owned(), weight);
-        edge.source = Some(source_vector_reference.clone());
-        edge.destination = Some(destination_vector_reference.clone());
+        edge.source = Some(Rc::downgrade(&source_vector_reference));
+        edge.destination = Some(Rc::downgrade(&destination_vector_reference));
 
         let edge_rc = Rc::new(RefCell::new(edge));
-        source_vector.edges.push(edge_rc.clone());
-        destination_vector.edges.push(edge_rc.clone());
+        let edge_weak = Rc::downgrade(&edge_rc);
+        source_vector.edges.push(edge_weak.clone());
+        destination_vector.edges.push(edge_weak.clone());
 
         self.edge_references.push(edge_rc);
     }
@@ -121,11 +122,21 @@ impl Graph {
             let source_rc = edge.source.as_ref().unwrap();
             let destination_rc = edge.destination.as_ref().unwrap();
 
-            let borrowed_source = source_rc.borrow();
-            let borrowed_destination = destination_rc.borrow();
+            let upgraded_source = source_rc.upgrade();
+            let upgraded_destination = destination_rc.upgrade();
+            if let (Some(upgraded_source), Some(upgraded_destination)) =
+                (upgraded_source, upgraded_destination)
+            {
+                let borrowed_source = upgraded_source.borrow();
+                let borrowed_destination = upgraded_destination.borrow();
 
-            (&borrowed_source.name == source && &borrowed_destination.name == destination)
-                || (&borrowed_source.name == destination && &borrowed_destination.name == source)
+                return (&borrowed_source.name == source
+                    && &borrowed_destination.name == destination)
+                    || (&borrowed_source.name == destination
+                        && &borrowed_destination.name == source);
+            }
+
+            return false;
         })
     }
 
@@ -170,7 +181,9 @@ pub mod tests {
         graph.add_vertex("vertex02".to_owned());
         graph.connect_vertices("vertex01".to_owned(), "vertex02".to_owned(), 1);
 
-        assert!(graph.has_edge_connections("vertex01-vertex02", ConnectionType::SourceAndDestination));
+        assert!(
+            graph.has_edge_connections("vertex01-vertex02", ConnectionType::SourceAndDestination)
+        );
     }
 
     #[test]
@@ -180,16 +193,8 @@ pub mod tests {
         graph.add_vertex("vertex01".to_owned());
         graph.add_vertex("vertex02".to_owned());
 
-        graph.connect_vertices(
-            "vertex01".to_owned(),
-            "vertex02".to_owned(),
-            1,
-        );
-        graph.connect_vertices(
-            "vertex01".to_owned(),
-            "vertex02".to_owned(),
-            1,
-        );
+        graph.connect_vertices("vertex01".to_owned(), "vertex02".to_owned(), 1);
+        graph.connect_vertices("vertex01".to_owned(), "vertex02".to_owned(), 1);
     }
 
     #[test]
@@ -199,16 +204,8 @@ pub mod tests {
         graph.add_vertex("vertex01".to_owned());
         graph.add_vertex("vertex02".to_owned());
 
-        graph.connect_vertices(
-            "vertex01".to_owned(),
-            "vertex02".to_owned(),
-            1,
-        );
-        graph.connect_vertices(
-            "vertex02".to_owned(),
-            "vertex01".to_owned(),
-            1,
-        );
+        graph.connect_vertices("vertex01".to_owned(), "vertex02".to_owned(), 1);
+        graph.connect_vertices("vertex02".to_owned(), "vertex01".to_owned(), 1);
     }
 
     #[test]
@@ -223,10 +220,6 @@ pub mod tests {
     #[should_panic]
     pub fn connecting_edge_to_unknown_vertex() {
         let mut graph = Graph::new("test".to_owned());
-        graph.connect_vertices(
-            "vertex01".to_owned(),
-            "unknown_vertex".to_owned(),
-            1,
-        );
+        graph.connect_vertices("vertex01".to_owned(), "unknown_vertex".to_owned(), 1);
     }
 }
