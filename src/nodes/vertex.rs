@@ -31,18 +31,19 @@ impl Vertex {
     pub fn has_connection(&self, destination_vector_name: &str) -> bool {
         self.edges.iter().any(|edge| {
             let borrowed_edge = edge.borrow();
-            let mut has_in_destination = false;
+            let mut has = false;
+            
             if let Some(destination) = borrowed_edge.destination.clone() {
                 let borrowed_vector = destination.borrow();
-                has_in_destination = borrowed_vector.name == destination_vector_name;
-            }
-            let mut has_in_source = false;
-            if let Some(source) = borrowed_edge.source.clone() {
-                let borrowed_vector = source.borrow();
-                has_in_source = borrowed_vector.name == destination_vector_name;
+                has |= borrowed_vector.name == destination_vector_name;
             }
 
-            return has_in_source || has_in_destination;
+            if let Some(source) = borrowed_edge.source.clone() {
+                let borrowed_vector = source.borrow();
+                has |= borrowed_vector.name == destination_vector_name;
+            }
+
+            return has;
         })
     }
 
