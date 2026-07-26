@@ -31,7 +31,6 @@ impl PathResolver {
         self.graph.connect_vertices(
             source_vector_name,
             destination_vector_name,
-            edge_identifier,
             weight,
         );
     }

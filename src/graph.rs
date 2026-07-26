@@ -52,7 +52,6 @@ impl Graph {
         &mut self,
         source_vector_name: String,
         destination_vector_name: String,
-        edge_identifier: String,
         weight: u32,
     ) {
         if self.has_connection_between_vertices(&source_vector_name, &destination_vector_name) {
@@ -77,7 +76,7 @@ impl Graph {
 
         let mut source_vector = source_vector_reference.borrow_mut();
         let mut destination_vector = destination_vector_reference.borrow_mut();
-
+        let edge_identifier = format!("{}-{}", source_vector.name, destination_vector.name);
         let mut edge = Edge::new(edge_identifier.to_owned(), weight);
         edge.source = Some(source_vector_reference.clone());
         edge.destination = Some(destination_vector_reference.clone());
@@ -109,7 +108,11 @@ impl Graph {
         found.is_some()
     }
 
-    pub(crate) fn has_connection_between_vertices(&self, source: &String, destination: &String) -> bool {
+    pub(crate) fn has_connection_between_vertices(
+        &self,
+        source: &String,
+        destination: &String,
+    ) -> bool {
         self.edge_references.iter().map(|v| v.borrow()).any(|edge| {
             if edge.source.is_none() || edge.destination.is_none() {
                 return false;
@@ -165,9 +168,9 @@ pub mod tests {
         let mut graph = Graph::new("test".to_owned());
         graph.add_vertex("vertex01".to_owned());
         graph.add_vertex("vertex02".to_owned());
-        graph.connect_vertices("vertex01".to_owned(), "vertex02".to_owned(), "edge01".to_owned(), 1);
+        graph.connect_vertices("vertex01".to_owned(), "vertex02".to_owned(), 1);
 
-        assert!(graph.has_edge_connections("edge01", ConnectionType::SourceAndDestination));
+        assert!(graph.has_edge_connections("vertex01-vertex02", ConnectionType::SourceAndDestination));
     }
 
     #[test]
@@ -177,8 +180,16 @@ pub mod tests {
         graph.add_vertex("vertex01".to_owned());
         graph.add_vertex("vertex02".to_owned());
 
-        graph.connect_vertices("vertex01".to_owned(), "vertex02".to_owned(), "edge01".to_owned(), 1);
-        graph.connect_vertices("vertex01".to_owned(), "vertex02".to_owned(), "edge01".to_owned(), 1);
+        graph.connect_vertices(
+            "vertex01".to_owned(),
+            "vertex02".to_owned(),
+            1,
+        );
+        graph.connect_vertices(
+            "vertex01".to_owned(),
+            "vertex02".to_owned(),
+            1,
+        );
     }
 
     #[test]
@@ -188,8 +199,16 @@ pub mod tests {
         graph.add_vertex("vertex01".to_owned());
         graph.add_vertex("vertex02".to_owned());
 
-        graph.connect_vertices("vertex01".to_owned(), "vertex02".to_owned(), "asdasd".to_owned(), 1);
-        graph.connect_vertices("vertex02".to_owned(), "vertex01".to_owned(), "test".to_owned(), 1);
+        graph.connect_vertices(
+            "vertex01".to_owned(),
+            "vertex02".to_owned(),
+            1,
+        );
+        graph.connect_vertices(
+            "vertex02".to_owned(),
+            "vertex01".to_owned(),
+            1,
+        );
     }
 
     #[test]
@@ -204,6 +223,10 @@ pub mod tests {
     #[should_panic]
     pub fn connecting_edge_to_unknown_vertex() {
         let mut graph = Graph::new("test".to_owned());
-        graph.connect_vertices("vertex01".to_owned(), "unknown_vertex".to_owned(), "edge01".to_owned(), 1);
+        graph.connect_vertices(
+            "vertex01".to_owned(),
+            "unknown_vertex".to_owned(),
+            1,
+        );
     }
 }

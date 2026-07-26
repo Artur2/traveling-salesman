@@ -115,7 +115,7 @@ impl ProcessingAlgorithm {
             let mut index_to_remove_edge_in_left = 0;
             let mut weight = 0;
 
-            // Removing edges in right, left slice before adding connections
+            // Searching index of edges in left, right slice to remove
             let right_last_vertex = right_slice.last().unwrap();
             let left_first_vertex = left_slice.first().unwrap();
             {
@@ -221,7 +221,7 @@ impl ProcessingAlgorithm {
                     visited_vertices.push(vertex.name.clone());
                 } else {
                     let length = vertex.edges.len();
-                    let random_choice: usize = rand::thread_rng().gen_range(0, length - 1);
+                    let random_choice: usize = thread_rng().gen_range(0, length - 1);
                     let edge = vertex.edges.index(random_choice);
                     let borrowed_edge = edge.borrow();
 
@@ -263,43 +263,36 @@ mod tests {
         graph.connect_vertices(
             "Polevskoy".to_owned(),
             "Revda".to_owned(),
-            "pore".to_owned(),
             2,
         );
         graph.connect_vertices(
             "Revda".to_owned(),
             "Pervouralsk".to_owned(),
-            "repe".to_owned(),
             2,
         );
         graph.connect_vertices(
             "Pervouralsk".to_owned(),
             "Ekaterinburg".to_owned(),
-            "pere".to_owned(),
             4,
         );
         graph.connect_vertices(
             "Polevskoy".to_owned(),
             "Ekaterinburg".to_owned(),
-            "poek".to_owned(),
             5,
         );
         graph.connect_vertices(
             "Ekaterinburg".to_owned(),
             "Revda".to_owned(),
-            "ekre".to_owned(),
             3,
         );
         graph.connect_vertices(
             "Sysert".to_owned(),
             "Polevskoy".to_owned(),
-            "sypo".to_owned(),
             3,
         );
         graph.connect_vertices(
             "Ekaterinburg".to_owned(),
             "Sysert".to_owned(),
-            "eksy".to_owned(),
             3,
         );
 
