@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-traveling_salesman_genetic_algo = { path = "../core", version = "0.1.0" }
+traveling_salesman_genetic = { path = "../core", version = "0.1.0" }

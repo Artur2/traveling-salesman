@@ -1,4 +1,4 @@
-use traveling_salesman_genetic_algo::path_resolver::PathResolver;
+use traveling_salesman_genetic::path_resolver::PathResolver;
 
 fn main() {
     let mut path_resolver = PathResolver::new("test".to_owned());

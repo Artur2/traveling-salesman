@@ -1,5 +1,5 @@
 [package]
-name = "traveling_salesman_genetic_algo"
+name = "traveling_salesman_genetic"
 version = "0.1.0"
 edition = "2024"
 
