@@ -680,24 +680,23 @@ mod tests {
         let mut graph = create_complex_graph();
         let processing_algorithm = ProcessingAlgorithm::default();
         let mut min_value = i32::MAX;
-        while min_value != 3 {
-            let random_routes = processing_algorithm.generate_random_routes(
-                &graph
-                    .vertex_references
-                    .iter()
-                    .map(|f| Rc::downgrade(&f))
-                    .collect(),
-                "Ревда",
-                "Белоярский",
-                10,
-            );
 
-            random_routes.iter().for_each(|r| {
-                let len = r.len();
-                if len < min_value as usize {
-                    min_value = len as i32;
-                }
-            })
-        }
+        let random_routes = processing_algorithm.generate_random_routes(
+            &graph
+                .vertex_references
+                .iter()
+                .map(|f| Rc::downgrade(&f))
+                .collect(),
+            "Ревда",
+            "Белоярский",
+            10,
+        );
+
+        random_routes.iter().for_each(|r| {
+            let len = r.len();
+            if len < min_value as usize {
+                min_value = len as i32;
+            }
+        })
     }
 }
