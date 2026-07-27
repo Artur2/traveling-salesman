@@ -101,7 +101,7 @@ impl ProcessingAlgorithm {
             // Calculating edges to remove
             let (right_index, left_index, right_last_vertex, left_first_vertex, weight) =
                 self.calculate_edges_in_left_right_routes_to_remove(&right_slice, &left_slice);
-            
+
             // Removing redundant edges
             self.remove_edges(
                 right_last_vertex,
@@ -110,22 +110,42 @@ impl ProcessingAlgorithm {
                 left_index,
             );
 
-            // Adding new edge between two slices
-            Vertex::add_connection(graph, right_last_vertex, left_first_vertex, weight);
-
-            let mut new_vector = vec![];
-            right_slice.iter().for_each(|vertex| {
-                new_vector.push(vertex.clone());
-            });
-            left_slice.iter().for_each(|vertex| {
-                new_vector.push(vertex.clone());
-            });
-
+            let new_vector = self.add_new_edges(
+                graph,
+                right_last_vertex,
+                left_first_vertex,
+                weight,
+                &right_slice,
+                &left_slice,
+            );
             crossed.push(new_vector);
             // TODO: Add tests to check logic
         }
 
         crossed
+    }
+
+    fn add_new_edges(
+        &self,
+        graph: &mut Graph,
+        right_last_vertex: &WeakVertexReference,
+        left_first_vertex: &WeakVertexReference,
+        weight: u32,
+        right: &WeakVertexReferences,
+        left: &WeakVertexReferences,
+    ) -> Vec<WeakVertexReference> {
+        // Adding new edge between two slices
+        Vertex::add_connection(graph, right_last_vertex, left_first_vertex, weight);
+
+        let mut new_vector = vec![];
+        right.iter().for_each(|vertex| {
+            new_vector.push(vertex.clone());
+        });
+        left.iter().for_each(|vertex| {
+            new_vector.push(vertex.clone());
+        });
+
+        new_vector
     }
 
     fn remove_edges(
