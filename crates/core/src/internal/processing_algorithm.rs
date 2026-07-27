@@ -1,14 +1,11 @@
 use crate::internal::mutable_vertex_pair::MutableVertexPair;
 use crate::internal::types::{
-    MutableVertexReference, MutableVertexReferences, WeakEdgeReference, WeakVertexReference,
-    WeakVertexReferences,
+    MutableVertexReference, MutableVertexReferences, WeakVertexReference, WeakVertexReferences,
 };
-use crate::nodes::edge::Edge;
 use crate::nodes::graph::Graph;
 use crate::nodes::vertex::Vertex;
 use rand::{Rng, thread_rng};
 use std::cell::RefCell;
-use std::cmp;
 use std::cmp::max;
 use std::ops::Index;
 use std::rc::{Rc, Weak};
@@ -24,7 +21,6 @@ impl ProcessingAlgorithm {
         destination: &String,
         amount_of_generations: u32,
     ) -> Vec<WeakVertexReferences> {
-        // TODO: Rewrite collecting edges instead of vertices
         let starting_point = vertices.iter().find(|v| match v.upgrade() {
             None => false,
             Some(v) => {
@@ -38,28 +34,15 @@ impl ProcessingAlgorithm {
         }
 
         let mut random_paths = vec![];
-
         for _ in 0..amount_of_generations {
             let routes =
                 self.generate_random_route_with_edges(starting_point.unwrap(), destination);
             if routes.is_empty() {
+                // Пропускаем роуты, которые не дошли до конечной точки
                 continue;
             }
 
-            if let (Some(first), Some(last)) = (routes.first(), routes.last()) {
-                if let (Some(first_upgraded), Some(last_upgraded)) =
-                    (first.upgrade(), last.upgrade())
-                {
-                    let first_borrowed = first_upgraded.borrow();
-                    let last_borrowed = last_upgraded.borrow();
-
-                    if first_borrowed.has_connection(&source)
-                        && last_borrowed.has_connection(&destination)
-                    {
-                        // TODO: Convert to vertices
-                    }
-                }
-            }
+            random_paths.push(routes);
         }
 
         random_paths
@@ -113,8 +96,7 @@ impl ProcessingAlgorithm {
             let random_vertex = same_points.index(random_index);
 
             // Searching indexes of same route in right and left vertices
-            let (left_index, right_index) =
-                self.select_same_point_in_left_right_routes(&pair, &random_vertex);
+            let (left_index, right_index) = self.select_same_point_in_left_right_routes(&pair);
 
             let right_slice = pair.right[..right_index as usize].to_vec();
             let left_slice = pair.left[left_index as usize..].to_vec();
@@ -280,11 +262,7 @@ impl ProcessingAlgorithm {
             });
     }
 
-    fn select_same_point_in_left_right_routes(
-        &self,
-        pair: &MutableVertexPair,
-        vertex: &MutableVertexReference,
-    ) -> (i32, i32) {
+    fn select_same_point_in_left_right_routes(&self, pair: &MutableVertexPair) -> (i32, i32) {
         // Searching indexes of same route in right and left vertices
         let mut left_index = 0;
         _ = pair
@@ -422,12 +400,13 @@ impl ProcessingAlgorithm {
         let mut stack = vec![];
         let mut resulting_edges = vec![];
         let mut visited_vertices: Vec<WeakVertexReference> = vec![];
+
         match starting_point.upgrade() {
             None => panic!("Cant reach out vertex"),
             Some(staring_point_rc) => {
                 let borrowed_starting_point = staring_point_rc.borrow();
                 let length = max(0, borrowed_starting_point.edges.len() - 1);
-                let random_value = thread_rng().gen_range(0, length);
+                let random_value = if length != 0 { thread_rng().gen_range(0, length) } else { 0 };
 
                 let edge = &borrowed_starting_point.edges[random_value];
                 stack.push(edge.clone());
@@ -460,8 +439,8 @@ impl ProcessingAlgorithm {
                                 vertex_source.borrow().name == borrowed_vertex_source.name
                             }) {
                                 let length = max(0, borrowed_vertex_source.edges.len() - 1);
-                                let random_index = thread_rng().gen_range(0, length);
-                                let random_edge = &borrowed_vertex_source.edges[random_index];
+                                let random_value = if length != 0 { thread_rng().gen_range(0, length) } else { 0 };
+                                let random_edge = &borrowed_vertex_source.edges[random_value];
                                 stack.push(random_edge.clone());
                                 visited_vertices.push(vertex_source.clone());
 
@@ -476,8 +455,8 @@ impl ProcessingAlgorithm {
                                 vertex_source.borrow().name == borrowed_vertex_destination.name
                             }) {
                                 let length = max(0, borrowed_vertex_destination.edges.len() - 1);
-                                let random_index = thread_rng().gen_range(0, length);
-                                let random_edge = &borrowed_vertex_destination.edges[random_index];
+                                let random_value = if length != 0 { thread_rng().gen_range(0, length) } else { 0 };
+                                let random_edge = &borrowed_vertex_destination.edges[random_value];
                                 stack.push(random_edge.clone());
                                 visited_vertices.push(vertex_destination.clone());
 
@@ -688,22 +667,9 @@ mod tests {
             borrowed.name == "Полевской"
         });
 
-        let mut results = vec![];
-        for _ in 0..100 {
-            let generation_result = processing_algorithm.generate_random_route_with_edges(
-                &Rc::downgrade(starting_point.unwrap()),
-                "Березовский",
-            );
-            if generation_result.is_empty() {
-                continue;
-            }
+        let mut fit_with_values = vec![];
 
-            results.push(generation_result);
-        }
-
-        results.clear();
-
-        for _ in 0..10 {
+        for _ in 0..10_000 {
             let generation_result = processing_algorithm.generate_random_route_with_edges(
                 &Rc::downgrade(starting_point.unwrap()),
                 "Белоярский",
@@ -712,8 +678,11 @@ mod tests {
                 continue;
             }
 
-            results.push(generation_result);
+
+            let fit_value = processing_algorithm.get_fit_value(&generation_result.clone());
+            fit_with_values.push((fit_value, generation_result.clone()))
         }
-        assert!(results.len() > 0);
+
+        assert!(fit_with_values.len() > 0);
     }
 }
