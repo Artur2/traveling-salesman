@@ -1,5 +1,7 @@
 use crate::internal::mutable_vertex_pair::MutableVertexPair;
-use crate::internal::types::WeakVertexReferences;
+use crate::internal::types::{
+    MutableVertexReference, MutableVertexReferences, WeakVertexReference, WeakVertexReferences,
+};
 use crate::nodes::graph::Graph;
 use crate::nodes::vertex::Vertex;
 use rand::{Rng, thread_rng};
@@ -79,170 +81,34 @@ impl ProcessingAlgorithm {
         pairs: Vec<MutableVertexPair>,
     ) -> Vec<WeakVertexReferences> {
         let mut crossed: Vec<WeakVertexReferences> = vec![];
-        // TODO: Simplify
         for pair in pairs {
             let mut same_points = vec![];
 
             // Selecting same route points with right in left pair
-            pair.left
-                .iter()
-                .map(|v| match v.upgrade() {
-                    None => panic!("Cant reach out vertex"),
-                    Some(vertex) => vertex,
-                })
-                .for_each(|vertex| {
-                    let borrowed_v = vertex.borrow();
-                    let found_in_right_vector = pair
-                        .right
-                        .iter()
-                        .map(|v| match v.upgrade() {
-                            None => panic!("Cant reach out vertex"),
-                            Some(vertex) => vertex,
-                        })
-                        .any(|v| match v.try_borrow() {
-                            Ok(v) => v.name == borrowed_v.name,
-                            Err(_) => false,
-                        });
-                    if found_in_right_vector {
-                        same_points.push(vertex.clone());
-                    }
-                });
+            self.select_same_route_points_in_pair(&pair, &mut same_points);
 
             // Select random index of found same pairs
             let random_index = thread_rng().gen_range(0, same_points.len() - 1);
             let random_vertex = same_points.index(random_index);
 
             // Searching indexes of same route in right and left vertices
-            let mut left_index = 0;
-            _ = pair
-                .left
-                .iter()
-                .map(|v| match v.upgrade() {
-                    None => panic!("Cant reach out vertex"),
-                    Some(vertex) => vertex,
-                })
-                .any(|vertex| {
-                    left_index += 1;
-                    let borrowed_v = vertex.borrow();
-                    let right_vertex = random_vertex.borrow();
-                    borrowed_v.name == right_vertex.name
-                });
+            let (left_index, right_index) =
+                self.select_same_point_in_left_right_routes(&pair, &random_vertex);
 
-            let mut right_index = 0;
-            _ = pair
-                .right
-                .iter()
-                .map(|v| match v.upgrade() {
-                    None => panic!("Cant reach out vertex"),
-                    Some(vertex) => vertex,
-                })
-                .any(|vertex| {
-                    right_index += 1;
-                    let right_vertex = vertex.borrow();
-                    let random_vertex_borrowed = random_vertex.borrow();
-                    right_vertex.name == random_vertex_borrowed.name
-                });
+            let right_slice = pair.right[..right_index as usize].to_vec();
+            let left_slice = pair.left[left_index as usize..].to_vec();
 
-            let right_slice = pair.right[..right_index].to_vec();
-            let left_slice = pair.left[left_index..].to_vec();
-            let mut index_to_remove_edge_in_right: i32 = -1;
-            let mut index_to_remove_edge_in_left: i32 = -1;
-            let mut weight = 0;
-
-            // Searching index of edges in left, right slice to remove
-            let right_last_vertex = right_slice.last().unwrap();
-            let left_first_vertex = left_slice.first().unwrap();
-            {
-                let borrowed_last_updgrade = right_last_vertex.upgrade();
-                if borrowed_last_updgrade.is_none() {
-                    panic!("Cant reach out vertex");
-                }
-                let borrowed_first_updgrade = left_first_vertex.upgrade();
-                if borrowed_first_updgrade.is_none() {
-                    panic!("Cant reach out vertex");
-                }
-
-                if let (Some(borrowed_first), Some(borrowed_last)) =
-                    (borrowed_first_updgrade, borrowed_last_updgrade)
-                {
-                    _ = borrowed_last
-                        .borrow()
-                        .edges
-                        .iter()
-                        .map(|e| match e.upgrade() {
-                            None => {
-                                panic!("Cant reach out edge");
-                            }
-                            Some(edge) => edge,
-                        })
-                        .any(|edge| {
-                            index_to_remove_edge_in_right += 1;
-                            let borrowed_edge = edge.borrow();
-                            let destination_vertex = borrowed_edge.destination.as_ref();
-                            match destination_vertex {
-                                None => false,
-                                Some(v) => match v.upgrade() {
-                                    None => panic!("Cant reach out vertex"),
-                                    Some(v) => {
-                                        let borrowed = v.borrow();
-                                        let equal = borrowed.name == borrowed_first.borrow().name;
-                                        if equal {
-                                            weight = borrowed_edge.weight;
-                                        }
-                                        equal
-                                    }
-                                },
-                            }
-                        });
-
-                    _ = borrowed_first
-                        .borrow()
-                        .edges
-                        .iter()
-                        .map(|e| match e.upgrade() {
-                            None => {
-                                panic!("Cant reach out edge");
-                            }
-                            Some(edge) => edge,
-                        })
-                        .any(|edge| {
-                            index_to_remove_edge_in_left += 1;
-                            let borrowed_edge = edge.borrow();
-                            let source_vertex = borrowed_edge.source.as_ref();
-                            match source_vertex {
-                                None => false,
-                                Some(v) => match v.upgrade() {
-                                    None => panic!("Cant reach out vertex"),
-                                    Some(v) => {
-                                        let borrowed = v.borrow();
-                                        borrowed.name == borrowed_last.borrow().name
-                                    }
-                                },
-                            }
-                        });
-                }
-            }
+            // Calculating edges to remove
+            let (right_index, left_index, right_last_vertex, left_first_vertex, weight) =
+                self.calculate_edges_in_left_right_routes_to_remove(&right_slice, &left_slice);
+            
             // Removing redundant edges
-            {
-                let borrowed_last_upgraded = right_last_vertex.upgrade();
-                let borrowed_first_upgraded = left_first_vertex.upgrade();
-
-                if let (Some(borrowed_last), Some(borrowed_first)) =
-                    (borrowed_last_upgraded, borrowed_first_upgraded)
-                {
-                    let mut borrowed_last = borrowed_last.borrow_mut();
-                    let mut borrowed_first = borrowed_first.borrow_mut();
-
-                    borrowed_last
-                        .edges
-                        .remove(index_to_remove_edge_in_right as usize);
-                    borrowed_first
-                        .edges
-                        .remove(index_to_remove_edge_in_left as usize);
-                } else {
-                    panic!("Cant reach out vertex");
-                }
-            }
+            self.remove_edges(
+                right_last_vertex,
+                left_first_vertex,
+                right_index,
+                left_index,
+            );
 
             // Adding new edge between two slices
             Vertex::add_connection(graph, right_last_vertex, left_first_vertex, weight);
@@ -260,6 +126,193 @@ impl ProcessingAlgorithm {
         }
 
         crossed
+    }
+
+    fn remove_edges(
+        &self,
+        right: &WeakVertexReference,
+        left: &WeakVertexReference,
+        right_index: u32,
+        left_index: u32,
+    ) {
+        let borrowed_last_upgraded = right.upgrade();
+        let borrowed_first_upgraded = left.upgrade();
+
+        if let (Some(borrowed_last), Some(borrowed_first)) =
+            (borrowed_last_upgraded, borrowed_first_upgraded)
+        {
+            let mut borrowed_last = borrowed_last.borrow_mut();
+            let mut borrowed_first = borrowed_first.borrow_mut();
+
+            borrowed_last.edges.remove(right_index as usize);
+            borrowed_first.edges.remove(left_index as usize);
+        } else {
+            panic!("Cant reach out vertex");
+        }
+    }
+
+    fn select_same_route_points_in_pair(
+        &self,
+        pair: &MutableVertexPair,
+        vertexes: &mut MutableVertexReferences,
+    ) {
+        pair.left
+            .iter()
+            .map(|v| match v.upgrade() {
+                None => panic!("Cant reach out vertex"),
+                Some(vertex) => vertex,
+            })
+            .for_each(|vertex| {
+                let borrowed_v = vertex.borrow();
+                let found_in_right_vector = pair
+                    .right
+                    .iter()
+                    .map(|v| match v.upgrade() {
+                        None => panic!("Cant reach out vertex"),
+                        Some(vertex) => vertex,
+                    })
+                    .any(|v| match v.try_borrow() {
+                        Ok(v) => v.name == borrowed_v.name,
+                        Err(_) => false,
+                    });
+                if found_in_right_vector {
+                    vertexes.push(vertex.clone());
+                }
+            });
+    }
+
+    fn select_same_point_in_left_right_routes(
+        &self,
+        pair: &MutableVertexPair,
+        vertex: &MutableVertexReference,
+    ) -> (i32, i32) {
+        // Searching indexes of same route in right and left vertices
+        let mut left_index = 0;
+        _ = pair
+            .left
+            .iter()
+            .map(|v| match v.upgrade() {
+                None => panic!("Cant reach out vertex"),
+                Some(vertex) => vertex,
+            })
+            .any(|vertex| {
+                left_index += 1;
+                let borrowed_v = vertex.borrow();
+                let right_vertex = vertex.borrow();
+                borrowed_v.name == right_vertex.name
+            });
+
+        let mut right_index = 0;
+        _ = pair
+            .right
+            .iter()
+            .map(|v| match v.upgrade() {
+                None => panic!("Cant reach out vertex"),
+                Some(vertex) => vertex,
+            })
+            .any(|vertex| {
+                right_index += 1;
+                let right_vertex = vertex.borrow();
+                let random_vertex_borrowed = vertex.borrow();
+                right_vertex.name == random_vertex_borrowed.name
+            });
+
+        (left_index, right_index)
+    }
+
+    fn calculate_edges_in_left_right_routes_to_remove<'a>(
+        &self,
+        right: &'a WeakVertexReferences,
+        left: &'a WeakVertexReferences,
+    ) -> (
+        u32,
+        u32,
+        &'a WeakVertexReference,
+        &'a WeakVertexReference,
+        u32,
+    ) {
+        // Searching index of edges in left, right slice to remove
+        let mut index_to_remove_edge_in_right: i32 = -1;
+        let mut index_to_remove_edge_in_left: i32 = -1;
+        let mut weight = 0;
+        let right_last_vertex = right.last().unwrap();
+        let left_first_vertex = left.first().unwrap();
+        let borrowed_last_upgrade = right_last_vertex.upgrade();
+        if borrowed_last_upgrade.is_none() {
+            panic!("Cant reach out vertex");
+        }
+        let borrowed_first_updgrade = left_first_vertex.upgrade();
+        if borrowed_first_updgrade.is_none() {
+            panic!("Cant reach out vertex");
+        }
+
+        if let (Some(borrowed_first), Some(borrowed_last)) =
+            (borrowed_first_updgrade, borrowed_last_upgrade)
+        {
+            _ = borrowed_last
+                .borrow()
+                .edges
+                .iter()
+                .map(|e| match e.upgrade() {
+                    None => {
+                        panic!("Cant reach out edge");
+                    }
+                    Some(edge) => edge,
+                })
+                .any(|edge| {
+                    index_to_remove_edge_in_right += 1;
+                    let borrowed_edge = edge.borrow();
+                    let destination_vertex = borrowed_edge.destination.as_ref();
+                    match destination_vertex {
+                        None => false,
+                        Some(v) => match v.upgrade() {
+                            None => panic!("Cant reach out vertex"),
+                            Some(v) => {
+                                let borrowed = v.borrow();
+                                let equal = borrowed.name == borrowed_first.borrow().name;
+                                if equal {
+                                    weight = borrowed_edge.weight;
+                                }
+                                equal
+                            }
+                        },
+                    }
+                });
+
+            _ = borrowed_first
+                .borrow()
+                .edges
+                .iter()
+                .map(|e| match e.upgrade() {
+                    None => {
+                        panic!("Cant reach out edge");
+                    }
+                    Some(edge) => edge,
+                })
+                .any(|edge| {
+                    index_to_remove_edge_in_left += 1;
+                    let borrowed_edge = edge.borrow();
+                    let source_vertex = borrowed_edge.source.as_ref();
+                    match source_vertex {
+                        None => false,
+                        Some(v) => match v.upgrade() {
+                            None => panic!("Cant reach out vertex"),
+                            Some(v) => {
+                                let borrowed = v.borrow();
+                                borrowed.name == borrowed_last.borrow().name
+                            }
+                        },
+                    }
+                });
+        }
+
+        (
+            index_to_remove_edge_in_right as u32,
+            index_to_remove_edge_in_left as u32,
+            right_last_vertex,
+            left_first_vertex,
+            weight,
+        )
     }
 
     fn generate_random_route(
