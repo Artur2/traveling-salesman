@@ -8,3 +8,4 @@ pub(crate) type MutableEdgeReferences = Vec<Rc<RefCell<Edge>>>;
 pub(crate) type WeakVertexReferences = Vec<WeakVertexReference>;
 pub(crate) type MutableVertexReference = Rc<RefCell<Vertex>>;
 pub(crate) type WeakVertexReference = Weak<RefCell<Vertex>>;
+pub(crate) type WeakEdgeReference = Weak<RefCell<Edge>>;

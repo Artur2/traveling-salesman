@@ -6,6 +6,7 @@ use crate::nodes::graph::Graph;
 use crate::nodes::vertex::Vertex;
 use rand::{Rng, thread_rng};
 use std::cell::RefCell;
+use std::cmp;
 use std::ops::Index;
 use std::rc::{Rc, Weak};
 
@@ -20,6 +21,7 @@ impl ProcessingAlgorithm {
         destination: &str,
         amount_of_generations: u32,
     ) -> Vec<WeakVertexReferences> {
+        // TODO: Rewrite collecting edges instead of vertices
         let starting_point = vertices.iter().find(|v| match v.upgrade() {
             None => false,
             Some(v) => {
@@ -36,8 +38,18 @@ impl ProcessingAlgorithm {
 
         for _ in 0..amount_of_generations {
             if let Some(path) = self.generate_random_route(starting_point.unwrap(), destination) {
-                // TODO: Add new vectors with one edge between
-                random_paths.push(path)
+                let first = path.first().unwrap();
+                let last = path.last().unwrap();
+
+                let borrowed_first = first.upgrade();
+                let borrowed_last = last.upgrade();
+                if let (Some(first), Some(last)) = (borrowed_first, borrowed_last) {
+                    let borrowed_source = first.borrow();
+                    let borrowed_destination = last.borrow();
+                    if borrowed_source.name == source && borrowed_destination.name == destination {
+                        random_paths.push(path)
+                    }
+                }
             }
         }
 
@@ -156,7 +168,7 @@ impl ProcessingAlgorithm {
                             if let (Some(source_unwrapped), Some(destination_unwrapped)) =
                                 (edge.source.as_ref(), edge.destination.as_ref())
                                 && let (Some(source), Some(destination)) =
-                                (source_unwrapped.upgrade(), destination_unwrapped.upgrade())
+                                    (source_unwrapped.upgrade(), destination_unwrapped.upgrade())
                             {
                                 let source_borrowed = source.borrow();
                                 let destination_borrowed = destination.borrow();
@@ -396,9 +408,10 @@ impl ProcessingAlgorithm {
         starting_point: &Weak<RefCell<Vertex>>,
         destination_identity: &str,
     ) -> Option<WeakVertexReferences> {
+        // TODO: Simplify
         let mut stack = vec![];
         let mut resulting_vertices = vec![];
-        let mut visited_vertices: Vec<String> = vec![];
+        let mut visited_routes: Vec<String> = vec![];
         let starting_rc = starting_point;
 
         stack.push(starting_rc.clone());
@@ -409,7 +422,18 @@ impl ProcessingAlgorithm {
                     None => panic!("Cant reach out vertex"),
                     Some(current) => {
                         let vertex = current.borrow();
-                        resulting_vertices.push(Rc::downgrade(&current));
+                        if !resulting_vertices.iter().any(|v: &WeakVertexReference| {
+                            match v.upgrade() {
+                                Some(vertex) => {
+                                    let ptr = vertex.as_ptr();
+                                    let current = current.as_ptr();
+                                    std::ptr::eq(ptr, current)
+                                }
+                                None => panic!("Cant reach out vertex"),
+                            }
+                        }) {
+                            resulting_vertices.push(Rc::downgrade(&current));
+                        }
 
                         if vertex.name == destination_identity {
                             return Some(resulting_vertices);
@@ -417,65 +441,54 @@ impl ProcessingAlgorithm {
 
                         if vertex.edges.is_empty() {
                             // vertex disconnected?
-                            return None;
+                            continue;
                         }
 
-                        if vertex.edges.len() == 1 {
-                            let edge = vertex.edges.index(0);
-                            match edge.upgrade() {
-                                None => panic!("Cant reach out edge"),
-                                Some(edge) => {
-                                    let borrowed_edge = edge.borrow();
+                        let except_edges = &vertex.edges;
+                        if except_edges.is_empty() {
+                            continue;
+                        }
 
-                                    if let Some(vertex) = borrowed_edge.destination.clone() {
-                                        stack.push(vertex);
-                                    }
-                                }
-                            }
-
-                            if visited_vertices
-                                .iter()
-                                .any(|vertex_name| vertex_name == &vertex.name)
-                            {
-                                return None;
-                            }
-
-                            visited_vertices.push(vertex.name.clone());
+                        let length = except_edges.len();
+                        if length == 0 {
+                            continue;
+                        }
+                        let max = cmp::max(length - 1, 0);
+                        let random_choice: usize = if max > 0 {
+                            thread_rng().gen_range(0, max)
                         } else {
-                            let length = vertex.edges.len();
-                            let random_choice: usize = thread_rng().gen_range(0, length - 1);
-                            let edge = vertex.edges.index(random_choice);
-                            match edge.upgrade() {
-                                None => panic!("Cant reach out edge"),
-                                Some(edge) => {
-                                    let borrowed_edge = edge.borrow();
+                            0
+                        };
+                        let edge = except_edges.index(random_choice);
+                        match edge.upgrade() {
+                            None => panic!("Cant reach out edge"),
+                            Some(edge) => {
+                                let borrowed_edge = edge.borrow();
 
-                                    if let Some(vertex) = borrowed_edge.destination.clone() {
-                                        stack.push(vertex);
+                                if let (Some(vertex_destination), Some(vertex_source)) = (
+                                    borrowed_edge.destination.clone(),
+                                    borrowed_edge.source.clone(),
+                                ) {
+                                    if !visited_routes
+                                        .iter()
+                                        .any(|v| *v == borrowed_edge.identifier)
+                                    {
+                                        stack.push(vertex_source.clone());
+                                        stack.push(vertex_destination.clone());
+                                        visited_routes.push(borrowed_edge.identifier.clone());
                                     }
                                 }
                             }
-
-                            if visited_vertices
-                                .iter()
-                                .any(|vertex_name| vertex_name == &vertex.name)
-                            {
-                                return None;
-                            }
-
-                            visited_vertices.push(vertex.name.clone());
                         }
                     }
                 }
             } else {
-                return None;
+                continue;
             }
         }
 
         Some(resulting_vertices)
     }
-
-
 }
 
 #[allow(unused_imports)]
@@ -522,12 +535,15 @@ mod tests {
         graph.connect_vertices("Березовский".to_owned(), "Екатеринбург".to_owned(), 14);
         graph.connect_vertices("Екатеринбург".to_owned(), "Дегтярск".to_owned(), 71);
         graph.connect_vertices("Екатеринбург".to_owned(), "Арамиль".to_owned(), 30);
+        graph.connect_vertices("Арамиль".to_owned(), "Белоярский".to_owned(), 47);
         graph.connect_vertices("Екатеринбург".to_owned(), "Заречный".to_owned(), 61);
         graph.connect_vertices("Екатеринбург".to_owned(), "Полевской".to_owned(), 68);
         graph.connect_vertices("Екатеринбург".to_owned(), "Ревда".to_owned(), 54);
         graph.connect_vertices("Екатеринбург".to_owned(), "Асбест".to_owned(), 90);
         graph.connect_vertices("Екатеринбург".to_owned(), "Белоярский".to_owned(), 53);
         graph.connect_vertices("Верхняя Пышма".to_owned(), "Березовский".to_owned(), 23);
+        graph.connect_vertices("Заречный".to_owned(), "Березовский".to_owned(), 57);
+        graph.connect_vertices("Заречный".to_owned(), "Белоярский".to_owned(), 11);
         graph.connect_vertices("Асбест".to_owned(), "Заречный".to_owned(), 42);
         graph.connect_vertices("Ревда".to_owned(), "Дегтярск".to_owned(), 21);
         graph.connect_vertices("Дегтярск".to_owned(), "Полевской".to_owned(), 38);
@@ -662,19 +678,26 @@ mod tests {
     #[test]
     pub fn should_find_optimal_way_for_complex_graph() {
         let mut graph = create_complex_graph();
-
         let processing_algorithm = ProcessingAlgorithm::default();
-        let random_routes = processing_algorithm.generate_random_routes(
-            &graph
-                .vertex_references
-                .iter()
-                .map(|f| Rc::downgrade(&f))
-                .collect(),
-            "Ревда",
-            "Белоярский",
-            10,
-        );
-        let pairs = processing_algorithm.generate_pairs(&random_routes);
-        let result = processing_algorithm.crossover(&mut graph, pairs);
+        let mut min_value = i32::MAX;
+        while min_value != 3 {
+            let random_routes = processing_algorithm.generate_random_routes(
+                &graph
+                    .vertex_references
+                    .iter()
+                    .map(|f| Rc::downgrade(&f))
+                    .collect(),
+                "Ревда",
+                "Белоярский",
+                10,
+            );
+
+            random_routes.iter().for_each(|r| {
+                let len = r.len();
+                if len < min_value as usize {
+                    min_value = len as i32;
+                }
+            })
+        }
     }
 }

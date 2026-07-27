@@ -3,6 +3,7 @@ use crate::nodes::edge::Edge;
 use std::cell::RefCell;
 use std::fmt::{Display, Formatter};
 use std::rc::{Rc, Weak};
+use crate::internal::types::WeakEdgeReference;
 
 #[derive(Default)]
 pub(crate) struct Vertex {
@@ -163,5 +164,24 @@ impl Vertex {
                 }
             }
         }
+    }
+
+    pub fn get_except_edge(&self, vertices: &Vec<String>) -> Vec<&WeakEdgeReference> {
+        let edges = self.edges.iter().filter(|e| {
+            match e.upgrade() {
+                None => false,
+                Some(edge_rc) => {
+                    let borrowed_edge = edge_rc.borrow();
+                    let mut found = false;
+                    for vertex in vertices.iter() {
+                        found |= !borrowed_edge.has_connection(&vertex);
+                    }
+
+                    found
+                }
+            }
+        }).collect();
+
+        edges
     }
 }
