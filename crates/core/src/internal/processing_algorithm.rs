@@ -174,7 +174,7 @@ impl ProcessingAlgorithm {
     fn select_same_route_points_in_pair(
         &self,
         pair: &MutableVertexPair,
-        vertexes: &mut MutableVertexReferences,
+        vertices: &mut MutableVertexReferences,
     ) {
         pair.left
             .iter()
@@ -196,7 +196,7 @@ impl ProcessingAlgorithm {
                         Err(_) => false,
                     });
                 if found_in_right_vector {
-                    vertexes.push(vertex.clone());
+                    vertices.push(vertex.clone());
                 }
             });
     }
