@@ -1,12 +1,15 @@
 use crate::internal::mutable_vertex_pair::MutableVertexPair;
 use crate::internal::types::{
-    MutableVertexReference, MutableVertexReferences, WeakVertexReference, WeakVertexReferences,
+    MutableVertexReference, MutableVertexReferences, WeakEdgeReference, WeakVertexReference,
+    WeakVertexReferences,
 };
+use crate::nodes::edge::Edge;
 use crate::nodes::graph::Graph;
 use crate::nodes::vertex::Vertex;
 use rand::{Rng, thread_rng};
 use std::cell::RefCell;
 use std::cmp;
+use std::cmp::max;
 use std::ops::Index;
 use std::rc::{Rc, Weak};
 
@@ -17,8 +20,8 @@ impl ProcessingAlgorithm {
     pub(crate) fn generate_random_routes(
         &self,
         vertices: &WeakVertexReferences,
-        source: &str,
-        destination: &str,
+        source: &String,
+        destination: &String,
         amount_of_generations: u32,
     ) -> Vec<WeakVertexReferences> {
         // TODO: Rewrite collecting edges instead of vertices
@@ -26,7 +29,7 @@ impl ProcessingAlgorithm {
             None => false,
             Some(v) => {
                 let borrowed_v = v.borrow();
-                borrowed_v.name == source
+                &borrowed_v.name == source
             }
         });
 
@@ -37,17 +40,23 @@ impl ProcessingAlgorithm {
         let mut random_paths = vec![];
 
         for _ in 0..amount_of_generations {
-            if let Some(path) = self.generate_random_route(starting_point.unwrap(), destination) {
-                let first = path.first().unwrap();
-                let last = path.last().unwrap();
+            let routes =
+                self.generate_random_route_with_edges(starting_point.unwrap(), destination);
+            if routes.is_empty() {
+                continue;
+            }
 
-                let borrowed_first = first.upgrade();
-                let borrowed_last = last.upgrade();
-                if let (Some(first), Some(last)) = (borrowed_first, borrowed_last) {
-                    let borrowed_source = first.borrow();
-                    let borrowed_destination = last.borrow();
-                    if borrowed_source.name == source && borrowed_destination.name == destination {
-                        random_paths.push(path)
+            if let (Some(first), Some(last)) = (routes.first(), routes.last()) {
+                if let (Some(first_upgraded), Some(last_upgraded)) =
+                    (first.upgrade(), last.upgrade())
+                {
+                    let first_borrowed = first_upgraded.borrow();
+                    let last_borrowed = last_upgraded.borrow();
+
+                    if first_borrowed.has_connection(&source)
+                        && last_borrowed.has_connection(&destination)
+                    {
+                        // TODO: Convert to vertices
                     }
                 }
             }
@@ -173,8 +182,10 @@ impl ProcessingAlgorithm {
                                 let source_borrowed = source.borrow();
                                 let destination_borrowed = destination.borrow();
 
-                                return source_borrowed.name == current_vertex_name
-                                    && destination_borrowed.name == next_vertex_name;
+                                return (source_borrowed.name == current_vertex_name
+                                    && destination_borrowed.name == next_vertex_name)
+                                    || (destination_borrowed.name == current_vertex_name
+                                        && source_borrowed.name == next_vertex_name);
                             }
 
                             false
@@ -403,91 +414,84 @@ impl ProcessingAlgorithm {
         )
     }
 
-    fn generate_random_route(
+    fn generate_random_route_with_edges(
         &self,
         starting_point: &Weak<RefCell<Vertex>>,
         destination_identity: &str,
-    ) -> Option<WeakVertexReferences> {
-        // TODO: Simplify
+    ) -> Vec<WeakVertexReference> {
         let mut stack = vec![];
-        let mut resulting_vertices = vec![];
-        let mut visited_routes: Vec<String> = vec![];
-        let starting_rc = starting_point;
+        let mut resulting_edges = vec![];
+        let mut visited_vertices: Vec<WeakVertexReference> = vec![];
+        match starting_point.upgrade() {
+            None => panic!("Cant reach out vertex"),
+            Some(staring_point_rc) => {
+                let borrowed_starting_point = staring_point_rc.borrow();
+                let length = max(0, borrowed_starting_point.edges.len() - 1);
+                let random_value = thread_rng().gen_range(0, length);
 
-        stack.push(starting_rc.clone());
+                let edge = &borrowed_starting_point.edges[random_value];
+                stack.push(edge.clone());
+
+                visited_vertices.push(starting_point.clone());
+            }
+        }
 
         while !stack.is_empty() {
-            if let Some(current) = stack.pop() {
-                match current.upgrade() {
-                    None => panic!("Cant reach out vertex"),
-                    Some(current) => {
-                        let vertex = current.borrow();
-                        if !resulting_vertices.iter().any(|v: &WeakVertexReference| {
-                            match v.upgrade() {
-                                Some(vertex) => {
-                                    let ptr = vertex.as_ptr();
-                                    let current = current.as_ptr();
-                                    std::ptr::eq(ptr, current)
+            match stack.pop() {
+                None => panic!("Cant reach out edge"),
+                Some(current_edge) => match current_edge.upgrade() {
+                    None => {}
+                    Some(upgraded) => {
+                        resulting_edges.push(current_edge.clone());
+
+                        let borrowed_edge = upgraded.borrow();
+                        if let (Some(vertex_destination), Some(vertex_source)) =
+                            (&borrowed_edge.destination, &borrowed_edge.source)
+                        {
+                            let vertex_destination_rc = vertex_destination.upgrade().unwrap();
+                            let vertex_source_rc = vertex_source.upgrade().unwrap();
+
+                            let borrowed_vertex_destination = vertex_destination_rc.borrow();
+                            let borrowed_vertex_source = vertex_source_rc.borrow();
+
+                            // Если не посетили данную точку, то все путь кладем в стек
+                            if !visited_vertices.iter().any(|f| {
+                                let vertex_source = f.upgrade().unwrap();
+                                vertex_source.borrow().name == borrowed_vertex_source.name
+                            }) {
+                                let length = max(0, borrowed_vertex_source.edges.len() - 1);
+                                let random_index = thread_rng().gen_range(0, length);
+                                let random_edge = &borrowed_vertex_source.edges[random_index];
+                                stack.push(random_edge.clone());
+                                visited_vertices.push(vertex_source.clone());
+
+                                if borrowed_vertex_source.name == destination_identity {
+                                    return visited_vertices;
                                 }
-                                None => panic!("Cant reach out vertex"),
                             }
-                        }) {
-                            resulting_vertices.push(Rc::downgrade(&current));
-                        }
 
-                        if vertex.name == destination_identity {
-                            return Some(resulting_vertices);
-                        }
+                            // Если не посетили данную точку, то все путm кладем в стек
+                            if !visited_vertices.iter().any(|f| {
+                                let vertex_source = f.upgrade().unwrap();
+                                vertex_source.borrow().name == borrowed_vertex_destination.name
+                            }) {
+                                let length = max(0, borrowed_vertex_destination.edges.len() - 1);
+                                let random_index = thread_rng().gen_range(0, length);
+                                let random_edge = &borrowed_vertex_destination.edges[random_index];
+                                stack.push(random_edge.clone());
+                                visited_vertices.push(vertex_destination.clone());
 
-                        if vertex.edges.is_empty() {
-                            // vertex disconnected?
-                            continue;
-                        }
-
-                        let except_edges = &vertex.edges;
-                        if except_edges.is_empty() {
-                            continue;
-                        }
-
-                        let length = except_edges.len();
-                        if length == 0 {
-                            continue;
-                        }
-                        let max = cmp::max(length - 1, 0);
-                        let random_choice: usize = if max > 0 {
-                            thread_rng().gen_range(0, max)
-                        } else {
-                            0
-                        };
-                        let edge = except_edges.index(random_choice);
-                        match edge.upgrade() {
-                            None => panic!("Cant reach out edge"),
-                            Some(edge) => {
-                                let borrowed_edge = edge.borrow();
-
-                                if let (Some(vertex_destination), Some(vertex_source)) = (
-                                    borrowed_edge.destination.clone(),
-                                    borrowed_edge.source.clone(),
-                                ) {
-                                    if !visited_routes
-                                        .iter()
-                                        .any(|v| *v == borrowed_edge.identifier)
-                                    {
-                                        stack.push(vertex_source.clone());
-                                        stack.push(vertex_destination.clone());
-                                        visited_routes.push(borrowed_edge.identifier.clone());
-                                    }
+                                if borrowed_vertex_destination.name == destination_identity {
+                                    return visited_vertices;
                                 }
                             }
                         }
                     }
-                }
-            } else {
-                continue;
+                },
             }
         }
 
-        Some(resulting_vertices)
+        vec![]
     }
 }
 
@@ -564,8 +568,8 @@ mod tests {
                 .iter()
                 .map(|f| Rc::downgrade(&f))
                 .collect(),
-            "Polevskoy",
-            "Pervouralsk",
+            &"Polevskoy".to_owned(),
+            &"Pervouralsk".to_owned(),
             10,
         );
         let fully_fit_paths = random_routes.iter().count();
@@ -582,8 +586,8 @@ mod tests {
                 .iter()
                 .map(|f| Rc::downgrade(&f))
                 .collect(),
-            "Polevskoy",
-            "Pervouralsk",
+            &"Polevskoy".to_owned(),
+            &"Pervouralsk".to_owned(),
             10,
         );
 
@@ -601,8 +605,8 @@ mod tests {
                 .iter()
                 .map(|f| Rc::downgrade(&f))
                 .collect(),
-            "Polevskoy",
-            "Pervouralsk",
+            &"Polevskoy".to_owned(),
+            &"Pervouralsk".to_owned(),
             1000,
         );
 
@@ -622,8 +626,8 @@ mod tests {
                 .iter()
                 .map(|f| Rc::downgrade(&f))
                 .collect(),
-            "Polevskoy",
-            "Pervouralsk",
+            &"Polevskoy".to_owned(),
+            &"Pervouralsk".to_owned(),
             100,
         );
 
@@ -665,8 +669,8 @@ mod tests {
                 .iter()
                 .map(|f| Rc::downgrade(&f))
                 .collect(),
-            "A",
-            "E",
+            &"A".to_owned(),
+            &"E".to_owned(),
             100,
         );
         let pairs = processing_algorithm.generate_pairs(&random_routes);
@@ -677,26 +681,39 @@ mod tests {
 
     #[test]
     pub fn should_find_optimal_way_for_complex_graph() {
-        let mut graph = create_complex_graph();
+        let graph = create_complex_graph();
         let processing_algorithm = ProcessingAlgorithm::default();
-        let mut min_value = i32::MAX;
+        let starting_point = graph.vertex_references.iter().find(|p| {
+            let borrowed = p.borrow();
+            borrowed.name == "Полевской"
+        });
 
-        let random_routes = processing_algorithm.generate_random_routes(
-            &graph
-                .vertex_references
-                .iter()
-                .map(|f| Rc::downgrade(&f))
-                .collect(),
-            "Ревда",
-            "Белоярский",
-            10,
-        );
-
-        random_routes.iter().for_each(|r| {
-            let len = r.len();
-            if len < min_value as usize {
-                min_value = len as i32;
+        let mut results = vec![];
+        for _ in 0..100 {
+            let generation_result = processing_algorithm.generate_random_route_with_edges(
+                &Rc::downgrade(starting_point.unwrap()),
+                "Березовский",
+            );
+            if generation_result.is_empty() {
+                continue;
             }
-        })
+
+            results.push(generation_result);
+        }
+
+        results.clear();
+
+        for _ in 0..10 {
+            let generation_result = processing_algorithm.generate_random_route_with_edges(
+                &Rc::downgrade(starting_point.unwrap()),
+                "Белоярский",
+            );
+            if generation_result.is_empty() {
+                continue;
+            }
+
+            results.push(generation_result);
+        }
+        assert!(results.len() > 0);
     }
 }

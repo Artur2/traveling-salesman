@@ -38,8 +38,8 @@ impl PathResolver {
                 .iter()
                 .map(Rc::downgrade)
                 .collect(),
-            source,
-            destination,
+            &source.to_owned(),
+            &destination.to_owned(),
             amount_of_generated_paths,
         );
         let pairs = self.processing_algorithm.generate_pairs(&random_paths);
