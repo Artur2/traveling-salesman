@@ -125,6 +125,62 @@ impl ProcessingAlgorithm {
         crossed
     }
 
+    pub(crate) fn get_fit_value(&self, route: &WeakVertexReferences) -> u32 {
+        let route_path = route
+            .iter()
+            .filter_map(|f| f.upgrade())
+            .map(|vertex| vertex.borrow().name.clone())
+            .collect::<Vec<String>>();
+
+        let mut fit = 0;
+        route.iter().enumerate().for_each(|(index, vertex)| {
+            if index + 1 >= route_path.len() {
+                return;
+            }
+            let current_vertex_name = route_path[index].clone();
+            let next_vertex_name = route_path[index + 1].clone();
+
+            match vertex.upgrade() {
+                None => panic!("Cant reach out vertex"),
+                Some(vertex_upgraded) => {
+                    let borrowed = vertex_upgraded.borrow();
+
+                    let edge = borrowed
+                        .edges
+                        .iter()
+                        .map(|p| p.upgrade())
+                        .map(|p| p.unwrap())
+                        .find(|p| {
+                            let edge = p.borrow();
+
+                            if let (Some(source_unwrapped), Some(destination_unwrapped)) =
+                                (edge.source.as_ref(), edge.destination.as_ref())
+                                && let (Some(source), Some(destination)) =
+                                (source_unwrapped.upgrade(), destination_unwrapped.upgrade())
+                            {
+                                let source_borrowed = source.borrow();
+                                let destination_borrowed = destination.borrow();
+
+                                return source_borrowed.name == current_vertex_name
+                                    && destination_borrowed.name == next_vertex_name;
+                            }
+
+                            false
+                        });
+
+                    if let Some(edge) = edge {
+                        let borrowed = edge.borrow();
+                        fit += borrowed.weight;
+                    } else {
+                        panic!("Cant reach out edge");
+                    }
+                }
+            }
+        });
+
+        fit
+    }
+
     fn add_new_edges(
         &self,
         graph: &mut Graph,
@@ -419,61 +475,7 @@ impl ProcessingAlgorithm {
         Some(resulting_vertices)
     }
 
-    fn get_fit_value(&self, route: &WeakVertexReferences) -> u32 {
-        let route_path = route
-            .iter()
-            .filter_map(|f| f.upgrade())
-            .map(|vertex| vertex.borrow().name.clone())
-            .collect::<Vec<String>>();
 
-        let mut fit = 0;
-        route.iter().enumerate().for_each(|(index, vertex)| {
-            if index + 1 >= route_path.len() {
-                return;
-            }
-            let current_vertex_name = route_path[index].clone();
-            let next_vertex_name = route_path[index + 1].clone();
-
-            match vertex.upgrade() {
-                None => panic!("Cant reach out vertex"),
-                Some(vertex_upgraded) => {
-                    let borrowed = vertex_upgraded.borrow();
-
-                    let edge = borrowed
-                        .edges
-                        .iter()
-                        .map(|p| p.upgrade())
-                        .map(|p| p.unwrap())
-                        .find(|p| {
-                            let edge = p.borrow();
-
-                            if let (Some(source_unwrapped), Some(destination_unwrapped)) =
-                                (edge.source.as_ref(), edge.destination.as_ref())
-                                && let (Some(source), Some(destination)) =
-                                    (source_unwrapped.upgrade(), destination_unwrapped.upgrade())
-                            {
-                                let source_borrowed = source.borrow();
-                                let destination_borrowed = destination.borrow();
-
-                                return source_borrowed.name == current_vertex_name
-                                    && destination_borrowed.name == next_vertex_name;
-                            }
-
-                            false
-                        });
-
-                    if let Some(edge) = edge {
-                        let borrowed = edge.borrow();
-                        fit += borrowed.weight;
-                    } else {
-                        panic!("Cant reach out edge");
-                    }
-                }
-            }
-        });
-
-        fit
-    }
 }
 
 #[allow(unused_imports)]
@@ -497,6 +499,41 @@ mod tests {
         graph.connect_vertices("Ekaterinburg".to_owned(), "Revda".to_owned(), 3);
         graph.connect_vertices("Sysert".to_owned(), "Polevskoy".to_owned(), 3);
         graph.connect_vertices("Ekaterinburg".to_owned(), "Sysert".to_owned(), 3);
+
+        graph
+    }
+
+    fn create_complex_graph() -> Graph {
+        let mut graph = Graph::new("test".to_owned());
+        graph.add_vertex("Верхняя Пышма".to_owned());
+        graph.add_vertex("Березовский".to_owned());
+        graph.add_vertex("Арамиль".to_owned());
+        graph.add_vertex("Сысерть".to_owned());
+        graph.add_vertex("Полевской".to_owned());
+        graph.add_vertex("Заречный".to_owned());
+        graph.add_vertex("Дегтярск".to_owned());
+        graph.add_vertex("Ревда".to_owned());
+        graph.add_vertex("Асбест".to_owned());
+        graph.add_vertex("Белоярский".to_owned());
+        graph.add_vertex("Первоуральск".to_owned());
+        graph.add_vertex("Екатеринбург".to_owned());
+
+        graph.connect_vertices("Верхняя Пышма".to_owned(), "Екатеринбург".to_owned(), 17);
+        graph.connect_vertices("Березовский".to_owned(), "Екатеринбург".to_owned(), 14);
+        graph.connect_vertices("Екатеринбург".to_owned(), "Дегтярск".to_owned(), 71);
+        graph.connect_vertices("Екатеринбург".to_owned(), "Арамиль".to_owned(), 30);
+        graph.connect_vertices("Екатеринбург".to_owned(), "Заречный".to_owned(), 61);
+        graph.connect_vertices("Екатеринбург".to_owned(), "Полевской".to_owned(), 68);
+        graph.connect_vertices("Екатеринбург".to_owned(), "Ревда".to_owned(), 54);
+        graph.connect_vertices("Екатеринбург".to_owned(), "Асбест".to_owned(), 90);
+        graph.connect_vertices("Екатеринбург".to_owned(), "Белоярский".to_owned(), 53);
+        graph.connect_vertices("Верхняя Пышма".to_owned(), "Березовский".to_owned(), 23);
+        graph.connect_vertices("Асбест".to_owned(), "Заречный".to_owned(), 42);
+        graph.connect_vertices("Ревда".to_owned(), "Дегтярск".to_owned(), 21);
+        graph.connect_vertices("Дегтярск".to_owned(), "Полевской".to_owned(), 38);
+        graph.connect_vertices("Верхняя Пышма".to_owned(), "Первоуральск".to_owned(), 59);
+        graph.connect_vertices("Первоуральск".to_owned(), "Ревда".to_owned(), 15);
+        graph.connect_vertices("Сысерть".to_owned(), "Арамиль".to_owned(), 28);
 
         graph
     }
@@ -620,5 +657,24 @@ mod tests {
         let result = processing_algorithm.crossover(&mut graph, pairs);
 
         assert!(result.len() > 0);
+    }
+
+    #[test]
+    pub fn should_find_optimal_way_for_complex_graph() {
+        let mut graph = create_complex_graph();
+
+        let processing_algorithm = ProcessingAlgorithm::default();
+        let random_routes = processing_algorithm.generate_random_routes(
+            &graph
+                .vertex_references
+                .iter()
+                .map(|f| Rc::downgrade(&f))
+                .collect(),
+            "Ревда",
+            "Белоярский",
+            10,
+        );
+        let pairs = processing_algorithm.generate_pairs(&random_routes);
+        let result = processing_algorithm.crossover(&mut graph, pairs);
     }
 }
