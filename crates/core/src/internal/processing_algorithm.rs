@@ -1,10 +1,8 @@
 use crate::internal::mutable_vertex_pair::MutableVertexPair;
-use crate::internal::types::{
-    MutableVertexReference, MutableVertexReferences, WeakVertexReference, WeakVertexReferences,
-};
+use crate::internal::types::{MutableVertexReference, MutableVertexReferences, WeakVertexReference, WeakVertexReferences};
 use crate::nodes::graph::Graph;
 use crate::nodes::vertex::Vertex;
-use rand::{Rng, thread_rng};
+use rand::{thread_rng, Rng};
 use std::cell::RefCell;
 use std::cmp::max;
 use std::ops::Index;
@@ -14,6 +12,8 @@ use std::rc::{Rc, Weak};
 pub(crate) struct ProcessingAlgorithm;
 
 impl ProcessingAlgorithm {
+
+    //TODO: Create new vertices for avoid graph mutation
     pub(crate) fn generate_random_routes(
         &self,
         vertices: &WeakVertexReferences,
@@ -85,7 +85,7 @@ impl ProcessingAlgorithm {
         pairs: Vec<MutableVertexPair>,
     ) -> Vec<WeakVertexReferences> {
         let mut crossed: Vec<WeakVertexReferences> = vec![];
-        for pair in pairs {
+        for pair in &pairs {
             let mut same_points = vec![];
 
             // Selecting same route points with right in left pair
@@ -96,7 +96,7 @@ impl ProcessingAlgorithm {
             let random_vertex = same_points.index(random_index);
 
             // Searching indexes of same route in right and left vertices
-            let (left_index, right_index) = self.select_same_point_in_left_right_routes(&pair);
+            let (left_index, right_index) = self.select_same_point_in_left_right_routes(pair, random_vertex);
 
             let right_slice = pair.right[..right_index as usize].to_vec();
             let left_slice = pair.left[left_index as usize..].to_vec();
@@ -262,7 +262,7 @@ impl ProcessingAlgorithm {
             });
     }
 
-    fn select_same_point_in_left_right_routes(&self, pair: &MutableVertexPair) -> (i32, i32) {
+    fn select_same_point_in_left_right_routes(&self, pair: &MutableVertexPair, random_vertex: &MutableVertexReference) -> (i32, i32) {
         // Searching indexes of same route in right and left vertices
         let mut left_index = 0;
         _ = pair
@@ -274,9 +274,9 @@ impl ProcessingAlgorithm {
             })
             .any(|vertex| {
                 left_index += 1;
-                let borrowed_v = vertex.borrow();
-                let right_vertex = vertex.borrow();
-                borrowed_v.name == right_vertex.name
+                let left_vertex = vertex.borrow();
+                let vertex_borrow = random_vertex.borrow();
+                vertex_borrow.name == left_vertex.name
             });
 
         let mut right_index = 0;
@@ -290,7 +290,7 @@ impl ProcessingAlgorithm {
             .any(|vertex| {
                 right_index += 1;
                 let right_vertex = vertex.borrow();
-                let random_vertex_borrowed = vertex.borrow();
+                let random_vertex_borrowed = random_vertex.borrow();
                 right_vertex.name == random_vertex_borrowed.name
             });
 
@@ -626,20 +626,7 @@ mod tests {
 
     #[test]
     pub fn crossover_should_work_as_expected() {
-        let mut graph = Graph::new("test".to_owned());
-        graph.add_vertex("A".to_owned());
-        graph.add_vertex("B".to_owned());
-        graph.add_vertex("C".to_owned());
-        graph.add_vertex("D".to_owned());
-        graph.add_vertex("E".to_owned());
-
-        graph.connect_vertices("A".to_owned(), "B".to_owned(), 2);
-        graph.connect_vertices("B".to_owned(), "C".to_owned(), 2);
-        graph.connect_vertices("C".to_owned(), "D".to_owned(), 2);
-        graph.connect_vertices("D".to_owned(), "E".to_owned(), 2);
-        graph.connect_vertices("B".to_owned(), "D".to_owned(), 4);
-        graph.connect_vertices("B".to_owned(), "E".to_owned(), 4);
-        graph.connect_vertices("C".to_owned(), "E".to_owned(), 4);
+        let mut graph = create_complex_graph();
 
         let processing_algorithm = ProcessingAlgorithm::default();
         let random_routes = processing_algorithm.generate_random_routes(
@@ -648,9 +635,9 @@ mod tests {
                 .iter()
                 .map(|f| Rc::downgrade(&f))
                 .collect(),
-            &"A".to_owned(),
-            &"E".to_owned(),
-            100,
+            &"Асбест".to_owned(),
+            &"Дегтярск".to_owned(),
+            1000,
         );
         let pairs = processing_algorithm.generate_pairs(&random_routes);
         let result = processing_algorithm.crossover(&mut graph, pairs);
@@ -664,25 +651,27 @@ mod tests {
         let processing_algorithm = ProcessingAlgorithm::default();
         let starting_point = graph.vertex_references.iter().find(|p| {
             let borrowed = p.borrow();
-            borrowed.name == "Полевской"
+            borrowed.name == "Березовский"
         });
 
         let mut fit_with_values = vec![];
 
+        let time = Instant::now();
         for _ in 0..10_000 {
             let generation_result = processing_algorithm.generate_random_route_with_edges(
                 &Rc::downgrade(starting_point.unwrap()),
-                "Белоярский",
+                "Дегтярск",
             );
             if generation_result.is_empty() {
                 continue;
             }
 
-
             let fit_value = processing_algorithm.get_fit_value(&generation_result.clone());
             fit_with_values.push((fit_value, generation_result.clone()))
         }
 
+        let elapsed_fit = time.elapsed().as_nanos();
+        println!("Elapsed {:?}", elapsed_fit);
         assert!(fit_with_values.len() > 0);
     }
 }
