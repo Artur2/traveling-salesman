@@ -1,8 +1,11 @@
 use crate::internal::mutable_vertex_pair::MutableVertexPair;
-use crate::internal::types::{MutableVertexReference, MutableVertexReferences, WeakVertexReference, WeakVertexReferences};
+use crate::internal::types::{
+    MutableVertexReference, MutableVertexReferences, WeakVertexReference, WeakVertexReferences,
+};
 use crate::nodes::graph::Graph;
 use crate::nodes::vertex::Vertex;
-use rand::{thread_rng, Rng};
+use crate::upgrade_conditionally;
+use rand::{Rng, thread_rng};
 use std::cell::RefCell;
 use std::cmp::max;
 use std::ops::Index;
@@ -12,7 +15,6 @@ use std::rc::{Rc, Weak};
 pub(crate) struct ProcessingAlgorithm;
 
 impl ProcessingAlgorithm {
-
     //TODO: Create new vertices for avoid graph mutation
     pub(crate) fn generate_random_routes(
         &self,
@@ -21,12 +23,10 @@ impl ProcessingAlgorithm {
         destination: &String,
         amount_of_generations: u32,
     ) -> Vec<WeakVertexReferences> {
-        let starting_point = vertices.iter().find(|v| match v.upgrade() {
-            None => false,
-            Some(v) => {
-                let borrowed_v = v.borrow();
-                &borrowed_v.name == source
-            }
+        let starting_point = vertices.iter().find(|v| {
+            let value = upgrade_conditionally!(v);
+            let borrowed_v = value.borrow();
+            &borrowed_v.name == source
         });
 
         if starting_point.is_none() {
@@ -96,7 +96,8 @@ impl ProcessingAlgorithm {
             let random_vertex = same_points.index(random_index);
 
             // Searching indexes of same route in right and left vertices
-            let (left_index, right_index) = self.select_same_point_in_left_right_routes(pair, random_vertex);
+            let (left_index, right_index) =
+                self.select_same_point_in_left_right_routes(pair, random_vertex);
 
             let right_slice = pair.right[..right_index as usize].to_vec();
             let left_slice = pair.left[left_index as usize..].to_vec();
@@ -131,7 +132,7 @@ impl ProcessingAlgorithm {
     pub(crate) fn get_fit_value(&self, route: &WeakVertexReferences) -> u32 {
         let route_path = route
             .iter()
-            .filter_map(|f| f.upgrade())
+            .map(|f| upgrade_conditionally!(f))
             .map(|vertex| vertex.borrow().name.clone())
             .collect::<Vec<String>>();
 
@@ -142,44 +143,39 @@ impl ProcessingAlgorithm {
             }
             let current_vertex_name = route_path[index].clone();
             let next_vertex_name = route_path[index + 1].clone();
+            let vertex_upgraded = upgrade_conditionally!(vertex);
 
-            match vertex.upgrade() {
-                None => panic!("Cant reach out vertex"),
-                Some(vertex_upgraded) => {
-                    let borrowed = vertex_upgraded.borrow();
+            let borrowed = vertex_upgraded.borrow();
 
-                    let edge = borrowed
-                        .edges
-                        .iter()
-                        .map(|p| p.upgrade())
-                        .map(|p| p.unwrap())
-                        .find(|p| {
-                            let edge = p.borrow();
+            let edge = borrowed
+                .edges
+                .iter()
+                .map(|p| upgrade_conditionally!(p))
+                .find(|p| {
+                    let edge = p.borrow();
 
-                            if let (Some(source_unwrapped), Some(destination_unwrapped)) =
-                                (edge.source.as_ref(), edge.destination.as_ref())
-                                && let (Some(source), Some(destination)) =
-                                    (source_unwrapped.upgrade(), destination_unwrapped.upgrade())
-                            {
-                                let source_borrowed = source.borrow();
-                                let destination_borrowed = destination.borrow();
+                    if let (Some(source_unwrapped), Some(destination_unwrapped)) =
+                        (edge.source.as_ref(), edge.destination.as_ref())
+                    {
+                        let source_upgraded = upgrade_conditionally!(source_unwrapped);
+                        let destination_upgraded = upgrade_conditionally!(destination_unwrapped);
+                        let source_borrowed = source_upgraded.borrow();
+                        let destination_borrowed = destination_upgraded.borrow();
 
-                                return (source_borrowed.name == current_vertex_name
-                                    && destination_borrowed.name == next_vertex_name)
-                                    || (destination_borrowed.name == current_vertex_name
-                                        && source_borrowed.name == next_vertex_name);
-                            }
-
-                            false
-                        });
-
-                    if let Some(edge) = edge {
-                        let borrowed = edge.borrow();
-                        fit += borrowed.weight;
-                    } else {
-                        panic!("Cant reach out edge");
+                        return (source_borrowed.name == current_vertex_name
+                            && destination_borrowed.name == next_vertex_name)
+                            || (destination_borrowed.name == current_vertex_name
+                                && source_borrowed.name == next_vertex_name);
                     }
-                }
+
+                    false
+                });
+
+            if let Some(edge) = edge {
+                let borrowed = edge.borrow();
+                fit += borrowed.weight;
+            } else {
+                panic!("Cant reach out edge");
             }
         });
 
@@ -195,7 +191,7 @@ impl ProcessingAlgorithm {
         right: &WeakVertexReferences,
         left: &WeakVertexReferences,
     ) -> Vec<WeakVertexReference> {
-        // Adding new edge between two slices
+        //TODO: Do not mutate initial structure of graph
         Vertex::add_connection(graph, right_last_vertex, left_first_vertex, weight);
 
         let mut new_vector = vec![];
@@ -216,20 +212,14 @@ impl ProcessingAlgorithm {
         right_index: u32,
         left_index: u32,
     ) {
-        let borrowed_last_upgraded = right.upgrade();
-        let borrowed_first_upgraded = left.upgrade();
+        let borrowed_last = upgrade_conditionally!(right);
+        let borrowed_first = upgrade_conditionally!(left);
 
-        if let (Some(borrowed_last), Some(borrowed_first)) =
-            (borrowed_last_upgraded, borrowed_first_upgraded)
-        {
-            let mut borrowed_last = borrowed_last.borrow_mut();
-            let mut borrowed_first = borrowed_first.borrow_mut();
+        let mut borrowed_last = borrowed_last.borrow_mut();
+        let mut borrowed_first = borrowed_first.borrow_mut();
 
-            borrowed_last.edges.remove(right_index as usize);
-            borrowed_first.edges.remove(left_index as usize);
-        } else {
-            panic!("Cant reach out vertex");
-        }
+        borrowed_last.edges.remove(right_index as usize);
+        borrowed_first.edges.remove(left_index as usize);
     }
 
     fn select_same_route_points_in_pair(
@@ -239,19 +229,13 @@ impl ProcessingAlgorithm {
     ) {
         pair.left
             .iter()
-            .map(|v| match v.upgrade() {
-                None => panic!("Cant reach out vertex"),
-                Some(vertex) => vertex,
-            })
+            .map(|v| upgrade_conditionally!(v))
             .for_each(|vertex| {
                 let borrowed_v = vertex.borrow();
                 let found_in_right_vector = pair
                     .right
                     .iter()
-                    .map(|v| match v.upgrade() {
-                        None => panic!("Cant reach out vertex"),
-                        Some(vertex) => vertex,
-                    })
+                    .map(|v| upgrade_conditionally!(v))
                     .any(|v| match v.try_borrow() {
                         Ok(v) => v.name == borrowed_v.name,
                         Err(_) => false,
@@ -262,16 +246,17 @@ impl ProcessingAlgorithm {
             });
     }
 
-    fn select_same_point_in_left_right_routes(&self, pair: &MutableVertexPair, random_vertex: &MutableVertexReference) -> (i32, i32) {
+    fn select_same_point_in_left_right_routes(
+        &self,
+        pair: &MutableVertexPair,
+        random_vertex: &MutableVertexReference,
+    ) -> (i32, i32) {
         // Searching indexes of same route in right and left vertices
         let mut left_index = 0;
         _ = pair
             .left
             .iter()
-            .map(|v| match v.upgrade() {
-                None => panic!("Cant reach out vertex"),
-                Some(vertex) => vertex,
-            })
+            .map(|v| upgrade_conditionally!(v))
             .any(|vertex| {
                 left_index += 1;
                 let left_vertex = vertex.borrow();
@@ -283,10 +268,7 @@ impl ProcessingAlgorithm {
         _ = pair
             .right
             .iter()
-            .map(|v| match v.upgrade() {
-                None => panic!("Cant reach out vertex"),
-                Some(vertex) => vertex,
-            })
+            .map(|v| upgrade_conditionally!(v))
             .any(|vertex| {
                 right_index += 1;
                 let right_vertex = vertex.borrow();
@@ -314,74 +296,50 @@ impl ProcessingAlgorithm {
         let mut weight = 0;
         let right_last_vertex = right.last().unwrap();
         let left_first_vertex = left.first().unwrap();
-        let borrowed_last_upgrade = right_last_vertex.upgrade();
-        if borrowed_last_upgrade.is_none() {
-            panic!("Cant reach out vertex");
-        }
-        let borrowed_first_updgrade = left_first_vertex.upgrade();
-        if borrowed_first_updgrade.is_none() {
-            panic!("Cant reach out vertex");
-        }
+        let borrowed_last_upgrade = upgrade_conditionally!(right_last_vertex);
+        let borrowed_first_upgrade = upgrade_conditionally!(left_first_vertex);
 
-        if let (Some(borrowed_first), Some(borrowed_last)) =
-            (borrowed_first_updgrade, borrowed_last_upgrade)
-        {
-            _ = borrowed_last
-                .borrow()
-                .edges
-                .iter()
-                .map(|e| match e.upgrade() {
-                    None => {
-                        panic!("Cant reach out edge");
+        _ = borrowed_last_upgrade
+            .borrow()
+            .edges
+            .iter()
+            .map(|e| upgrade_conditionally!(e))
+            .any(|edge| {
+                index_to_remove_edge_in_right += 1;
+                let borrowed_edge = edge.borrow();
+                let destination_vertex = borrowed_edge.destination.as_ref();
+                match destination_vertex {
+                    None => false,
+                    Some(v) => {
+                        let upgraded = upgrade_conditionally!(v);
+                        let borrowed = upgraded.borrow();
+                        let equal = borrowed.name == borrowed_first_upgrade.borrow().name;
+                        if equal {
+                            weight = borrowed_edge.weight;
+                        }
+                        equal
                     }
-                    Some(edge) => edge,
-                })
-                .any(|edge| {
-                    index_to_remove_edge_in_right += 1;
-                    let borrowed_edge = edge.borrow();
-                    let destination_vertex = borrowed_edge.destination.as_ref();
-                    match destination_vertex {
-                        None => false,
-                        Some(v) => match v.upgrade() {
-                            None => panic!("Cant reach out vertex"),
-                            Some(v) => {
-                                let borrowed = v.borrow();
-                                let equal = borrowed.name == borrowed_first.borrow().name;
-                                if equal {
-                                    weight = borrowed_edge.weight;
-                                }
-                                equal
-                            }
-                        },
-                    }
-                });
+                }
+            });
 
-            _ = borrowed_first
-                .borrow()
-                .edges
-                .iter()
-                .map(|e| match e.upgrade() {
-                    None => {
-                        panic!("Cant reach out edge");
+        _ = borrowed_first_upgrade
+            .borrow()
+            .edges
+            .iter()
+            .map(|e| upgrade_conditionally!(e))
+            .any(|edge| {
+                index_to_remove_edge_in_left += 1;
+                let borrowed_edge = edge.borrow();
+                let source_vertex = borrowed_edge.source.as_ref();
+                match source_vertex {
+                    None => false,
+                    Some(v) => {
+                        let upgraded = upgrade_conditionally!(v);
+                        let borrowed = upgraded.borrow();
+                        borrowed.name == borrowed_last_upgrade.borrow().name
                     }
-                    Some(edge) => edge,
-                })
-                .any(|edge| {
-                    index_to_remove_edge_in_left += 1;
-                    let borrowed_edge = edge.borrow();
-                    let source_vertex = borrowed_edge.source.as_ref();
-                    match source_vertex {
-                        None => false,
-                        Some(v) => match v.upgrade() {
-                            None => panic!("Cant reach out vertex"),
-                            Some(v) => {
-                                let borrowed = v.borrow();
-                                borrowed.name == borrowed_last.borrow().name
-                            }
-                        },
-                    }
-                });
-        }
+                }
+            });
 
         (
             index_to_remove_edge_in_right as u32,
@@ -401,72 +359,77 @@ impl ProcessingAlgorithm {
         let mut resulting_edges = vec![];
         let mut visited_vertices: Vec<WeakVertexReference> = vec![];
 
-        match starting_point.upgrade() {
-            None => panic!("Cant reach out vertex"),
-            Some(staring_point_rc) => {
-                let borrowed_starting_point = staring_point_rc.borrow();
-                let length = max(0, borrowed_starting_point.edges.len() - 1);
-                let random_value = if length != 0 { thread_rng().gen_range(0, length) } else { 0 };
+        let starting_point_rc = upgrade_conditionally!(starting_point);
+        let borrowed_starting_point = starting_point_rc.borrow();
+        let length = max(0, borrowed_starting_point.edges.len() - 1);
+        let random_value = if length != 0 {
+            thread_rng().gen_range(0, length)
+        } else {
+            0
+        };
 
-                let edge = &borrowed_starting_point.edges[random_value];
-                stack.push(edge.clone());
+        let edge = &borrowed_starting_point.edges[random_value];
+        stack.push(edge.clone());
 
-                visited_vertices.push(starting_point.clone());
-            }
-        }
+        visited_vertices.push(starting_point.clone());
 
         while !stack.is_empty() {
             match stack.pop() {
                 None => panic!("Cant reach out edge"),
-                Some(current_edge) => match current_edge.upgrade() {
-                    None => {}
-                    Some(upgraded) => {
-                        resulting_edges.push(current_edge.clone());
+                Some(current_edge) => {
+                    let upgraded = upgrade_conditionally!(current_edge);
+                    resulting_edges.push(current_edge.clone());
+                    let borrowed_edge = upgraded.borrow();
+                    if let (Some(vertex_destination), Some(vertex_source)) =
+                        (&borrowed_edge.destination, &borrowed_edge.source)
+                    {
+                        let vertex_destination_rc = upgrade_conditionally!(vertex_destination);
+                        let vertex_source_rc = upgrade_conditionally!(vertex_source);
 
-                        let borrowed_edge = upgraded.borrow();
-                        if let (Some(vertex_destination), Some(vertex_source)) =
-                            (&borrowed_edge.destination, &borrowed_edge.source)
-                        {
-                            let vertex_destination_rc = vertex_destination.upgrade().unwrap();
-                            let vertex_source_rc = vertex_source.upgrade().unwrap();
+                        let borrowed_vertex_destination = vertex_destination_rc.borrow();
+                        let borrowed_vertex_source = vertex_source_rc.borrow();
 
-                            let borrowed_vertex_destination = vertex_destination_rc.borrow();
-                            let borrowed_vertex_source = vertex_source_rc.borrow();
+                        // Если не посетили данную точку, то все путь кладем в стек
+                        if !visited_vertices.iter().any(|f| {
+                            let vertex_source = upgrade_conditionally!(f);
+                            vertex_source.borrow().name == borrowed_vertex_source.name
+                        }) {
+                            let length = max(0, borrowed_vertex_source.edges.len() - 1);
+                            let random_value = if length != 0 {
+                                thread_rng().gen_range(0, length)
+                            } else {
+                                0
+                            };
+                            let random_edge = &borrowed_vertex_source.edges[random_value];
+                            stack.push(random_edge.clone());
+                            visited_vertices.push(vertex_source.clone());
 
-                            // Если не посетили данную точку, то все путь кладем в стек
-                            if !visited_vertices.iter().any(|f| {
-                                let vertex_source = f.upgrade().unwrap();
-                                vertex_source.borrow().name == borrowed_vertex_source.name
-                            }) {
-                                let length = max(0, borrowed_vertex_source.edges.len() - 1);
-                                let random_value = if length != 0 { thread_rng().gen_range(0, length) } else { 0 };
-                                let random_edge = &borrowed_vertex_source.edges[random_value];
-                                stack.push(random_edge.clone());
-                                visited_vertices.push(vertex_source.clone());
-
-                                if borrowed_vertex_source.name == destination_identity {
-                                    return visited_vertices;
-                                }
+                            if borrowed_vertex_source.name == destination_identity {
+                                return visited_vertices;
                             }
+                        }
 
-                            // Если не посетили данную точку, то все путm кладем в стек
-                            if !visited_vertices.iter().any(|f| {
-                                let vertex_source = f.upgrade().unwrap();
-                                vertex_source.borrow().name == borrowed_vertex_destination.name
-                            }) {
-                                let length = max(0, borrowed_vertex_destination.edges.len() - 1);
-                                let random_value = if length != 0 { thread_rng().gen_range(0, length) } else { 0 };
-                                let random_edge = &borrowed_vertex_destination.edges[random_value];
-                                stack.push(random_edge.clone());
-                                visited_vertices.push(vertex_destination.clone());
+                        // Если не посетили данную точку, то все путm кладем в стек
+                        if !visited_vertices.iter().any(|f| {
+                            let vertex_source = upgrade_conditionally!(f);
+                            vertex_source.borrow().name == borrowed_vertex_destination.name
+                        }) {
+                            let length = max(0, borrowed_vertex_destination.edges.len() - 1);
+                            let random_value = if length != 0 {
+                                thread_rng().gen_range(0, length)
+                            } else {
+                                0
+                            };
+                            let random_edge = &borrowed_vertex_destination.edges[random_value];
+                            stack.push(random_edge.clone());
+                            visited_vertices.push(vertex_destination.clone());
 
-                                if borrowed_vertex_destination.name == destination_identity {
-                                    return visited_vertices;
-                                }
+                            if borrowed_vertex_destination.name == destination_identity {
+                                return visited_vertices;
                             }
                         }
                     }
-                },
+                }
             }
         }
 
