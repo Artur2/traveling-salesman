@@ -4,7 +4,7 @@ use crate::internal::types::{
 };
 use crate::nodes::graph::Graph;
 use crate::nodes::vertex::Vertex;
-use crate::upgrade_conditionally;
+use crate::{random_index, upgrade_conditionally};
 use rand::{Rng, thread_rng};
 use std::cell::RefCell;
 use std::cmp::max;
@@ -361,12 +361,7 @@ impl ProcessingAlgorithm {
 
         let starting_point_rc = upgrade_conditionally!(starting_point);
         let borrowed_starting_point = starting_point_rc.borrow();
-        let length = max(0, borrowed_starting_point.edges.len() - 1);
-        let random_value = if length != 0 {
-            thread_rng().gen_range(0, length)
-        } else {
-            0
-        };
+        let random_value = random_index!(&borrowed_starting_point);
 
         let edge = &borrowed_starting_point.edges[random_value];
         stack.push(edge.clone());
@@ -394,12 +389,7 @@ impl ProcessingAlgorithm {
                             let vertex_source = upgrade_conditionally!(f);
                             vertex_source.borrow().name == borrowed_vertex_source.name
                         }) {
-                            let length = max(0, borrowed_vertex_source.edges.len() - 1);
-                            let random_value = if length != 0 {
-                                thread_rng().gen_range(0, length)
-                            } else {
-                                0
-                            };
+                            let random_value = random_index!(&borrowed_vertex_source);
                             let random_edge = &borrowed_vertex_source.edges[random_value];
                             stack.push(random_edge.clone());
                             visited_vertices.push(vertex_source.clone());
@@ -409,17 +399,12 @@ impl ProcessingAlgorithm {
                             }
                         }
 
-                        // Если не посетили данную точку, то все путm кладем в стек
+                        // Если не посетили данную точку, то все пути кладем в стек
                         if !visited_vertices.iter().any(|f| {
                             let vertex_source = upgrade_conditionally!(f);
                             vertex_source.borrow().name == borrowed_vertex_destination.name
                         }) {
-                            let length = max(0, borrowed_vertex_destination.edges.len() - 1);
-                            let random_value = if length != 0 {
-                                thread_rng().gen_range(0, length)
-                            } else {
-                                0
-                            };
+                            let random_value = random_index!(&borrowed_vertex_destination);
                             let random_edge = &borrowed_vertex_destination.edges[random_value];
                             stack.push(random_edge.clone());
                             visited_vertices.push(vertex_destination.clone());

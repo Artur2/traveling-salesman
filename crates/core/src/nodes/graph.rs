@@ -6,6 +6,7 @@ use crate::internal::types::{MutableEdgeReferences, MutableVertexReferences};
 use crate::nodes::connection_type::ConnectionType;
 use crate::nodes::edge::Edge;
 use crate::nodes::vertex::Vertex;
+use crate::upgrade_conditionally;
 use rand::Rng;
 use std::cell::RefCell;
 use std::ops::Index;
@@ -122,21 +123,14 @@ impl Graph {
             let source_rc = edge.source.as_ref().unwrap();
             let destination_rc = edge.destination.as_ref().unwrap();
 
-            let upgraded_source = source_rc.upgrade();
-            let upgraded_destination = destination_rc.upgrade();
-            if let (Some(upgraded_source), Some(upgraded_destination)) =
-                (upgraded_source, upgraded_destination)
-            {
-                let borrowed_source = upgraded_source.borrow();
-                let borrowed_destination = upgraded_destination.borrow();
+            let upgraded_source = upgrade_conditionally!(source_rc);
+            let upgraded_destination = upgrade_conditionally!(destination_rc);
 
-                return (&borrowed_source.name == source
-                    && &borrowed_destination.name == destination)
-                    || (&borrowed_source.name == destination
-                        && &borrowed_destination.name == source);
-            }
+            let borrowed_source = upgraded_source.borrow();
+            let borrowed_destination = upgraded_destination.borrow();
 
-            false
+            return (&borrowed_source.name == source && &borrowed_destination.name == destination)
+                || (&borrowed_source.name == destination && &borrowed_destination.name == source);
         })
     }
 
