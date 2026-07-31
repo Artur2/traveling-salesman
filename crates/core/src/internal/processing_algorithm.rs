@@ -86,10 +86,8 @@ impl ProcessingAlgorithm {
     ) -> Vec<WeakVertexReferences> {
         let mut crossed: Vec<WeakVertexReferences> = vec![];
         for pair in &pairs {
-            let mut same_points = vec![];
-
             // Selecting same route points with right in left pair
-            self.select_same_route_points_in_pair(&pair, &mut same_points);
+            let same_points = self.select_same_route_points_in_pair(&pair);
 
             // Select random index of found same pairs
             let random_index = thread_rng().gen_range(0, same_points.len() - 1);
@@ -225,8 +223,8 @@ impl ProcessingAlgorithm {
     fn select_same_route_points_in_pair(
         &self,
         pair: &MutableVertexPair,
-        vertices: &mut MutableVertexReferences,
-    ) {
+    ) -> MutableVertexReferences {
+        let mut same_points = vec![];
         pair.left
             .iter()
             .map(|v| upgrade_conditionally!(v))
@@ -241,9 +239,11 @@ impl ProcessingAlgorithm {
                         Err(_) => false,
                     });
                 if found_in_right_vector {
-                    vertices.push(vertex.clone());
+                    same_points.push(vertex.clone());
                 }
             });
+        
+        same_points
     }
 
     fn select_same_point_in_left_right_routes(
