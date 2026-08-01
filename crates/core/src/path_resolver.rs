@@ -42,8 +42,8 @@ impl PathResolver {
             &destination.to_owned(),
             amount_of_generated_paths,
         );
-        let pairs = self.processing_algorithm.generate_pairs(&random_paths);
-        let _crossed = self.processing_algorithm.crossover(&mut self.graph, pairs);
+        // let pairs = self.processing_algorithm.generate_pairs(&random_paths);
+        // let _crossed = self.processing_algorithm.crossover(&mut self.graph, pairs);
 
         todo!("Implement optimal path")
     }

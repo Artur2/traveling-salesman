@@ -69,7 +69,7 @@ impl Vertex {
 
     #[allow(unused_assignments)]
     pub fn add_connection(
-        graph: &mut Graph,
+        graph: &Graph,
         source_vertex: &Weak<RefCell<Vertex>>,
         destination_vertex: &Weak<RefCell<Vertex>>,
         weight: u32,
@@ -108,7 +108,7 @@ impl Vertex {
         let edge_rc = if existing.is_none() {
             let new_edge = RefCell::new(new_edge);
             let edge_rc = Rc::new(new_edge);
-            graph.edge_references.push(edge_rc.clone());
+            // graph.edge_references.push(edge_rc.clone());
             Rc::downgrade(&edge_rc)
         } else {
             Rc::downgrade(existing.unwrap())
