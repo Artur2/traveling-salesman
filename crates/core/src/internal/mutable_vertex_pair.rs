@@ -1,6 +1,6 @@
-use crate::internal::types::WeakVertexReferences;
+use crate::internal::types::MutableVertexReferences;
 
 pub(crate) struct MutableVertexPair {
-    pub left: WeakVertexReferences,
-    pub right: WeakVertexReferences,
+    pub left: MutableVertexReferences,
+    pub right: MutableVertexReferences,
 }

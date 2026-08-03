@@ -1,8 +1,8 @@
 use crate::nodes::vertex::Vertex;
 use std::cell::RefCell;
-use std::rc::Weak;
+use std::rc::{Rc, Weak};
 
-type OptionalVertexRc = Option<Weak<RefCell<Vertex>>>;
+type OptionalVertexRc = Option<Rc<RefCell<Vertex>>>;
 
 #[derive(Default)]
 pub(crate) struct Edge {
@@ -24,12 +24,11 @@ impl Edge {
     pub fn has_connection(&self, vertex_identifier: &String) -> bool {
         if let (Some(source), Some(destination)) = (self.source.as_ref(), self.destination.as_ref())
         {
-            if let (Some(source), Some(destination)) = (source.upgrade(), destination.upgrade()) {
-                let borrowed_source = source.borrow();
-                let borrowed_destination = destination.borrow();
-                
-                return borrowed_source.name == *vertex_identifier || borrowed_destination.name == *vertex_identifier;
-            }
+            let borrowed_source = source.borrow();
+            let borrowed_destination = destination.borrow();
+
+            return borrowed_source.name == *vertex_identifier
+                || borrowed_destination.name == *vertex_identifier;
         }
 
         false

@@ -79,13 +79,12 @@ impl Graph {
         let mut destination_vector = destination_vector_reference.borrow_mut();
         let edge_identifier = format!("{}-{}", source_vector.name, destination_vector.name);
         let mut edge = Edge::new(edge_identifier.to_owned(), weight);
-        edge.source = Some(Rc::downgrade(source_vector_reference));
-        edge.destination = Some(Rc::downgrade(destination_vector_reference));
-
+        edge.source = Some(source_vector_reference.clone());
+        edge.destination = Some(destination_vector_reference.clone());
         let edge_rc = Rc::new(RefCell::new(edge));
-        let edge_weak = Rc::downgrade(&edge_rc);
-        source_vector.edges.push(edge_weak.clone());
-        destination_vector.edges.push(edge_weak.clone());
+
+        source_vector.edges.push(edge_rc.clone());
+        destination_vector.edges.push(edge_rc.clone());
 
         self.edge_references.push(edge_rc);
     }
@@ -122,12 +121,10 @@ impl Graph {
 
             let source_rc = edge.source.as_ref().unwrap();
             let destination_rc = edge.destination.as_ref().unwrap();
+            
 
-            let upgraded_source = upgrade_conditionally!(source_rc);
-            let upgraded_destination = upgrade_conditionally!(destination_rc);
-
-            let borrowed_source = upgraded_source.borrow();
-            let borrowed_destination = upgraded_destination.borrow();
+            let borrowed_source = source_rc.borrow();
+            let borrowed_destination = destination_rc.borrow();
 
             return (&borrowed_source.name == source && &borrowed_destination.name == destination)
                 || (&borrowed_source.name == destination && &borrowed_destination.name == source);

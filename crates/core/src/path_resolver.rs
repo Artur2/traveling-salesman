@@ -30,7 +30,7 @@ impl PathResolver {
             .connect_vertices(source_vector_name, destination_vector_name, weight);
     }
     
-    pub fn resolve_optimal_path(&mut self, source: &str, destination: &str, _attempts_to_cross: u32, amount_of_generated_paths: u32) -> Vec<&str> {
+    pub fn resolve_optimal_path(&mut self, source: &str, destination: &str, attempts_to_cross: u32, amount_of_generated_paths: u32) -> Vec<&str> {
         let random_paths = self.processing_algorithm.generate_random_routes(
             &self
                 .graph
@@ -45,6 +45,6 @@ impl PathResolver {
         // let pairs = self.processing_algorithm.generate_pairs(&random_paths);
         // let _crossed = self.processing_algorithm.crossover(&mut self.graph, pairs);
 
-        todo!("Implement optimal path")
+        unimplemented!("Implement optimal path")
     }
 }

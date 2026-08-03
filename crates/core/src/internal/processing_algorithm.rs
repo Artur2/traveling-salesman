@@ -16,7 +16,6 @@ use std::rc::{Rc, Weak};
 pub(crate) struct ProcessingAlgorithm;
 
 impl ProcessingAlgorithm {
-    //TODO: Create new vertices for avoid graph mutation
     pub(crate) fn generate_random_routes(
         &self,
         vertices: &WeakVertexReferences,
@@ -50,11 +49,11 @@ impl ProcessingAlgorithm {
 
     pub(crate) fn generate_pairs(
         &self,
-        vertices: &Vec<WeakVertexReferences>,
+        vertices: &Vec<MutableVertexReferences>,
     ) -> Vec<MutableVertexPair> {
         let mut return_vertices = vec![];
-        let mut left: Option<WeakVertexReferences> = None;
-        let mut right: Option<WeakVertexReferences> = None;
+        let mut left: Option<MutableVertexReferences> = None;
+        let mut right: Option<MutableVertexReferences> = None;
 
         vertices.iter().for_each(|vertex| {
             if left.is_none() {
@@ -83,8 +82,8 @@ impl ProcessingAlgorithm {
         &self,
         graph: &mut Graph,
         pairs: Vec<MutableVertexPair>,
-    ) -> Vec<WeakVertexReferences> {
-        let mut crossed: Vec<WeakVertexReferences> = vec![];
+    ) -> Vec<MutableVertexReferences> {
+        let mut crossed: Vec<MutableVertexReferences> = vec![];
         for pair in &pairs {
             // Selecting same route points with right in left pair
             let same_points = self.select_same_route_points_in_pair(&pair);
@@ -148,17 +147,14 @@ impl ProcessingAlgorithm {
             let edge = borrowed
                 .edges
                 .iter()
-                .map(|p| upgrade_conditionally!(p))
                 .find(|p| {
                     let edge = p.borrow();
 
                     if let (Some(source_unwrapped), Some(destination_unwrapped)) =
                         (edge.source.as_ref(), edge.destination.as_ref())
                     {
-                        let source_upgraded = upgrade_conditionally!(source_unwrapped);
-                        let destination_upgraded = upgrade_conditionally!(destination_unwrapped);
-                        let source_borrowed = source_upgraded.borrow();
-                        let destination_borrowed = destination_upgraded.borrow();
+                        let source_borrowed = source_unwrapped.borrow();
+                        let destination_borrowed = destination_unwrapped.borrow();
 
                         return (source_borrowed.name == current_vertex_name
                             && destination_borrowed.name == next_vertex_name)
@@ -183,12 +179,12 @@ impl ProcessingAlgorithm {
     fn add_new_edges(
         &self,
         graph: &mut Graph,
-        right_last_vertex: &WeakVertexReference,
-        left_first_vertex: &WeakVertexReference,
+        right_last_vertex: &MutableVertexReference,
+        left_first_vertex: &MutableVertexReference,
         weight: u32,
-        right: &WeakVertexReferences,
-        left: &WeakVertexReferences,
-    ) -> Vec<WeakVertexReference> {
+        right: &MutableVertexReferences,
+        left: &MutableVertexReferences,
+    ) -> Vec<MutableVertexReference> {
         //TODO: Do not mutate initial structure of graph
         Vertex::add_connection(graph, right_last_vertex, left_first_vertex, weight);
 
@@ -205,16 +201,14 @@ impl ProcessingAlgorithm {
 
     fn remove_edges(
         &self,
-        right: &WeakVertexReference,
-        left: &WeakVertexReference,
+        right: &MutableVertexReference,
+        left: &MutableVertexReference,
         right_index: u32,
         left_index: u32,
     ) {
-        let borrowed_last = upgrade_conditionally!(right);
-        let borrowed_first = upgrade_conditionally!(left);
 
-        let mut borrowed_last = borrowed_last.borrow_mut();
-        let mut borrowed_first = borrowed_first.borrow_mut();
+        let mut borrowed_last = right.borrow_mut();
+        let mut borrowed_first = left.borrow_mut();
 
         borrowed_last.edges.remove(right_index as usize);
         borrowed_first.edges.remove(left_index as usize);
@@ -227,13 +221,11 @@ impl ProcessingAlgorithm {
         let mut same_points = vec![];
         pair.left
             .iter()
-            .map(|v| upgrade_conditionally!(v))
             .for_each(|vertex| {
                 let borrowed_v = vertex.borrow();
                 let found_in_right_vector = pair
                     .right
                     .iter()
-                    .map(|v| upgrade_conditionally!(v))
                     .any(|v| match v.try_borrow() {
                         Ok(v) => v.name == borrowed_v.name,
                         Err(_) => false,
@@ -256,7 +248,6 @@ impl ProcessingAlgorithm {
         _ = pair
             .left
             .iter()
-            .map(|v| upgrade_conditionally!(v))
             .any(|vertex| {
                 left_index += 1;
                 let left_vertex = vertex.borrow();
@@ -268,7 +259,6 @@ impl ProcessingAlgorithm {
         _ = pair
             .right
             .iter()
-            .map(|v| upgrade_conditionally!(v))
             .any(|vertex| {
                 right_index += 1;
                 let right_vertex = vertex.borrow();
@@ -281,13 +271,13 @@ impl ProcessingAlgorithm {
 
     fn calculate_edges_in_left_right_routes_to_remove<'a>(
         &self,
-        right: &'a WeakVertexReferences,
-        left: &'a WeakVertexReferences,
+        right: &'a MutableVertexReferences,
+        left: &'a MutableVertexReferences,
     ) -> (
         u32,
         u32,
-        &'a WeakVertexReference,
-        &'a WeakVertexReference,
+        &'a MutableVertexReference,
+        &'a MutableVertexReference,
         u32,
     ) {
         // Searching index of edges in left, right slice to remove
@@ -296,14 +286,11 @@ impl ProcessingAlgorithm {
         let mut weight = 0;
         let right_last_vertex = right.last().unwrap();
         let left_first_vertex = left.first().unwrap();
-        let borrowed_last_upgrade = upgrade_conditionally!(right_last_vertex);
-        let borrowed_first_upgrade = upgrade_conditionally!(left_first_vertex);
 
-        _ = borrowed_last_upgrade
+        _ = right_last_vertex
             .borrow()
             .edges
             .iter()
-            .map(|e| upgrade_conditionally!(e))
             .any(|edge| {
                 index_to_remove_edge_in_right += 1;
                 let borrowed_edge = edge.borrow();
@@ -311,9 +298,8 @@ impl ProcessingAlgorithm {
                 match destination_vertex {
                     None => false,
                     Some(v) => {
-                        let upgraded = upgrade_conditionally!(v);
-                        let borrowed = upgraded.borrow();
-                        let equal = borrowed.name == borrowed_first_upgrade.borrow().name;
+                        let borrowed = v.borrow();
+                        let equal = borrowed.name == left_first_vertex.borrow().name;
                         if equal {
                             weight = borrowed_edge.weight;
                         }
@@ -322,11 +308,10 @@ impl ProcessingAlgorithm {
                 }
             });
 
-        _ = borrowed_first_upgrade
+        _ = left_first_vertex
             .borrow()
             .edges
             .iter()
-            .map(|e| upgrade_conditionally!(e))
             .any(|edge| {
                 index_to_remove_edge_in_left += 1;
                 let borrowed_edge = edge.borrow();
@@ -334,9 +319,8 @@ impl ProcessingAlgorithm {
                 match source_vertex {
                     None => false,
                     Some(v) => {
-                        let upgraded = upgrade_conditionally!(v);
-                        let borrowed = upgraded.borrow();
-                        borrowed.name == borrowed_last_upgrade.borrow().name
+                        let borrowed = v.borrow();
+                        borrowed.name == right_last_vertex.borrow().name
                     }
                 }
             });
@@ -357,7 +341,7 @@ impl ProcessingAlgorithm {
     ) -> Vec<MutableVertexReference> {
         let mut stack = vec![];
         let mut resulting_edges = vec![];
-        let mut visited_vertices: Vec<WeakVertexReference> = vec![];
+        let mut visited_vertices: Vec<MutableVertexReference> = vec![];
         let mut resulting_vertices = vec![];
 
         let starting_point_rc = upgrade_conditionally!(starting_point);
@@ -365,36 +349,33 @@ impl ProcessingAlgorithm {
         let random_value = random_index!(&borrowed_starting_point);
 
         let edge = &borrowed_starting_point.edges[random_value];
-        let edge_upgraded = upgrade_conditionally!(edge);
-        let edge_borrowed = edge_upgraded.borrow();
+        let edge_borrowed = edge.borrow();
 
         let new_vertex = Rc::new(RefCell::new(Vertex::new(
             borrowed_starting_point.name.clone(),
         )));
         resulting_vertices.push((edge_borrowed.weight, new_vertex));
         stack.push(edge.clone());
-        visited_vertices.push(starting_point.clone());
+        visited_vertices.push(starting_point_rc.clone());
 
         while !stack.is_empty() {
             match stack.pop() {
                 None => panic!("Cant reach out edge"),
                 Some(current_edge) => {
-                    let upgraded = upgrade_conditionally!(current_edge);
+
                     resulting_edges.push(current_edge.clone());
-                    let borrowed_edge = upgraded.borrow();
+                    let borrowed_edge = current_edge.borrow();
+
                     if let (Some(vertex_destination), Some(vertex_source)) =
                         (&borrowed_edge.destination, &borrowed_edge.source)
                     {
-                        let vertex_destination_rc = upgrade_conditionally!(vertex_destination);
-                        let vertex_source_rc = upgrade_conditionally!(vertex_source);
 
-                        let borrowed_vertex_destination = vertex_destination_rc.borrow();
-                        let borrowed_vertex_source = vertex_source_rc.borrow();
+                        let borrowed_vertex_destination = vertex_destination.borrow();
+                        let borrowed_vertex_source = vertex_source.borrow();
 
                         // Если не посетили данную точку, то все путь кладем в стек
                         if !visited_vertices.iter().any(|f| {
-                            let vertex_source = upgrade_conditionally!(f);
-                            vertex_source.borrow().name == borrowed_vertex_source.name
+                            f.borrow().name == borrowed_vertex_source.name
                         }) {
                             let random_value = random_index!(&borrowed_vertex_source);
                             let random_edge = &borrowed_vertex_source.edges[random_value];
@@ -412,8 +393,7 @@ impl ProcessingAlgorithm {
 
                         // Если не посетили данную точку, то все пути кладем в стек
                         if !visited_vertices.iter().any(|f| {
-                            let vertex_source = upgrade_conditionally!(f);
-                            vertex_source.borrow().name == borrowed_vertex_destination.name
+                            f.borrow().name == borrowed_vertex_destination.name
                         }) {
                             let random_value = random_index!(&borrowed_vertex_destination);
                             let random_edge = &borrowed_vertex_destination.edges[random_value];
@@ -454,17 +434,16 @@ impl ProcessingAlgorithm {
             let mut borrowed_vertex = current_vertex.1.borrow_mut();
             let mut borrowed_next_vertex = next_vertex.1.borrow_mut();
 
-            // TODO: correct weight
             let mut new_edge = Edge::new(
                 format!("{}-{}", borrowed_vertex.name, borrowed_next_vertex.name).to_owned(),
                 current_vertex.0,
             );
-            new_edge.source = Some(Rc::downgrade(&current_vertex.1));
-            new_edge.destination = Some(Rc::downgrade(&next_vertex.1));
+            new_edge.source = Some(current_vertex.1.clone());
+            new_edge.destination = Some(next_vertex.1.clone());
             let new_edge_rc = Rc::new(RefCell::new(new_edge));
 
-            borrowed_vertex.edges.push(Rc::downgrade(&new_edge_rc));
-            borrowed_next_vertex.edges.push(Rc::downgrade(&new_edge_rc));
+            borrowed_vertex.edges.push(new_edge_rc.clone());
+            borrowed_next_vertex.edges.push(new_edge_rc.clone());
         }
 
         new_vertexes
