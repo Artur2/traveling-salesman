@@ -6,7 +6,7 @@ use crate::nodes::edge::Edge;
 use crate::nodes::graph::Graph;
 use crate::nodes::vertex::Vertex;
 use crate::{random_index, upgrade_conditionally};
-use rand::{thread_rng, Rng};
+use rand::{Rng, thread_rng};
 use std::cell::RefCell;
 use std::cmp::max;
 use std::ops::Index;
@@ -80,7 +80,6 @@ impl ProcessingAlgorithm {
 
     pub(crate) fn crossover(
         &self,
-        graph: &mut Graph,
         pairs: Vec<MutableVertexPair>,
     ) -> Vec<MutableVertexReferences> {
         let mut crossed: Vec<MutableVertexReferences> = vec![];
@@ -143,26 +142,23 @@ impl ProcessingAlgorithm {
 
             let borrowed = vertex_upgraded.borrow();
 
-            let edge = borrowed
-                .edges
-                .iter()
-                .find(|p| {
-                    let edge = p.borrow();
+            let edge = borrowed.edges.iter().find(|p| {
+                let edge = p.borrow();
 
-                    if let (Some(source_unwrapped), Some(destination_unwrapped)) =
-                        (edge.source.as_ref(), edge.destination.as_ref())
-                    {
-                        let source_borrowed = source_unwrapped.borrow();
-                        let destination_borrowed = destination_unwrapped.borrow();
+                if let (Some(source_unwrapped), Some(destination_unwrapped)) =
+                    (edge.source.as_ref(), edge.destination.as_ref())
+                {
+                    let source_borrowed = source_unwrapped.borrow();
+                    let destination_borrowed = destination_unwrapped.borrow();
 
-                        return (source_borrowed.name == current_vertex_name
-                            && destination_borrowed.name == next_vertex_name)
-                            || (destination_borrowed.name == current_vertex_name
-                                && source_borrowed.name == next_vertex_name);
-                    }
+                    return (source_borrowed.name == current_vertex_name
+                        && destination_borrowed.name == next_vertex_name)
+                        || (destination_borrowed.name == current_vertex_name
+                            && source_borrowed.name == next_vertex_name);
+                }
 
-                    false
-                });
+                false
+            });
 
             if let Some(edge) = edge {
                 let borrowed = edge.borrow();
@@ -203,7 +199,6 @@ impl ProcessingAlgorithm {
         right_index: u32,
         left_index: u32,
     ) {
-
         let mut borrowed_last = right.borrow_mut();
         let mut borrowed_first = left.borrow_mut();
 
@@ -216,21 +211,16 @@ impl ProcessingAlgorithm {
         pair: &MutableVertexPair,
     ) -> MutableVertexReferences {
         let mut same_points = vec![];
-        pair.left
-            .iter()
-            .for_each(|vertex| {
-                let borrowed_v = vertex.borrow();
-                let found_in_right_vector = pair
-                    .right
-                    .iter()
-                    .any(|v| match v.try_borrow() {
-                        Ok(v) => v.name == borrowed_v.name,
-                        Err(_) => false,
-                    });
-                if found_in_right_vector {
-                    same_points.push(vertex.clone());
-                }
+        pair.left.iter().for_each(|vertex| {
+            let borrowed_v = vertex.borrow();
+            let found_in_right_vector = pair.right.iter().any(|v| match v.try_borrow() {
+                Ok(v) => v.name == borrowed_v.name,
+                Err(_) => false,
             });
+            if found_in_right_vector {
+                same_points.push(vertex.clone());
+            }
+        });
 
         same_points
     }
@@ -242,26 +232,20 @@ impl ProcessingAlgorithm {
     ) -> (i32, i32) {
         // Searching indexes of same route in right and left vertices
         let mut left_index = 0;
-        _ = pair
-            .left
-            .iter()
-            .any(|vertex| {
-                left_index += 1;
-                let left_vertex = vertex.borrow();
-                let vertex_borrow = random_vertex.borrow();
-                vertex_borrow.name == left_vertex.name
-            });
+        _ = pair.left.iter().any(|vertex| {
+            left_index += 1;
+            let left_vertex = vertex.borrow();
+            let vertex_borrow = random_vertex.borrow();
+            vertex_borrow.name == left_vertex.name
+        });
 
         let mut right_index = 0;
-        _ = pair
-            .right
-            .iter()
-            .any(|vertex| {
-                right_index += 1;
-                let right_vertex = vertex.borrow();
-                let random_vertex_borrowed = random_vertex.borrow();
-                right_vertex.name == random_vertex_borrowed.name
-            });
+        _ = pair.right.iter().any(|vertex| {
+            right_index += 1;
+            let right_vertex = vertex.borrow();
+            let random_vertex_borrowed = random_vertex.borrow();
+            right_vertex.name == random_vertex_borrowed.name
+        });
 
         (left_index, right_index)
     }
@@ -284,43 +268,35 @@ impl ProcessingAlgorithm {
         let right_last_vertex = right.last().unwrap();
         let left_first_vertex = left.first().unwrap();
 
-        _ = right_last_vertex
-            .borrow()
-            .edges
-            .iter()
-            .any(|edge| {
-                index_to_remove_edge_in_right += 1;
-                let borrowed_edge = edge.borrow();
-                let destination_vertex = borrowed_edge.destination.as_ref();
-                match destination_vertex {
-                    None => false,
-                    Some(v) => {
-                        let borrowed = v.borrow();
-                        let equal = borrowed.name == left_first_vertex.borrow().name;
-                        if equal {
-                            weight = borrowed_edge.weight;
-                        }
-                        equal
+        _ = right_last_vertex.borrow().edges.iter().any(|edge| {
+            index_to_remove_edge_in_right += 1;
+            let borrowed_edge = edge.borrow();
+            let destination_vertex = borrowed_edge.destination.as_ref();
+            match destination_vertex {
+                None => false,
+                Some(v) => {
+                    let borrowed = v.borrow();
+                    let equal = borrowed.name == left_first_vertex.borrow().name;
+                    if equal {
+                        weight = borrowed_edge.weight;
                     }
+                    equal
                 }
-            });
+            }
+        });
 
-        _ = left_first_vertex
-            .borrow()
-            .edges
-            .iter()
-            .any(|edge| {
-                index_to_remove_edge_in_left += 1;
-                let borrowed_edge = edge.borrow();
-                let source_vertex = borrowed_edge.source.as_ref();
-                match source_vertex {
-                    None => false,
-                    Some(v) => {
-                        let borrowed = v.borrow();
-                        borrowed.name == right_last_vertex.borrow().name
-                    }
+        _ = left_first_vertex.borrow().edges.iter().any(|edge| {
+            index_to_remove_edge_in_left += 1;
+            let borrowed_edge = edge.borrow();
+            let source_vertex = borrowed_edge.source.as_ref();
+            match source_vertex {
+                None => false,
+                Some(v) => {
+                    let borrowed = v.borrow();
+                    borrowed.name == right_last_vertex.borrow().name
                 }
-            });
+            }
+        });
 
         (
             index_to_remove_edge_in_right as u32,
@@ -359,21 +335,20 @@ impl ProcessingAlgorithm {
             match stack.pop() {
                 None => panic!("Cant reach out edge"),
                 Some(current_edge) => {
-
                     resulting_edges.push(current_edge.clone());
                     let borrowed_edge = current_edge.borrow();
 
                     if let (Some(vertex_destination), Some(vertex_source)) =
                         (&borrowed_edge.destination, &borrowed_edge.source)
                     {
-
                         let borrowed_vertex_destination = vertex_destination.borrow();
                         let borrowed_vertex_source = vertex_source.borrow();
 
                         // Если не посетили данную точку, то все путь кладем в стек
-                        if !visited_vertices.iter().any(|f| {
-                            f.borrow().name == borrowed_vertex_source.name
-                        }) {
+                        if !visited_vertices
+                            .iter()
+                            .any(|f| f.borrow().name == borrowed_vertex_source.name)
+                        {
                             let random_value = random_index!(&borrowed_vertex_source);
                             let random_edge = &borrowed_vertex_source.edges[random_value];
                             stack.push(random_edge.clone());
@@ -389,9 +364,10 @@ impl ProcessingAlgorithm {
                         }
 
                         // Если не посетили данную точку, то все пути кладем в стек
-                        if !visited_vertices.iter().any(|f| {
-                            f.borrow().name == borrowed_vertex_destination.name
-                        }) {
+                        if !visited_vertices
+                            .iter()
+                            .any(|f| f.borrow().name == borrowed_vertex_destination.name)
+                        {
                             let random_value = random_index!(&borrowed_vertex_destination);
                             let random_edge = &borrowed_vertex_destination.edges[random_value];
                             stack.push(random_edge.clone());

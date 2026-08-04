@@ -1,5 +1,5 @@
-use crate::nodes::graph::Graph;
 use crate::internal::processing_algorithm::ProcessingAlgorithm;
+use crate::nodes::graph::Graph;
 use std::rc::Rc;
 
 #[must_use = "Main entry point to work with"]
@@ -15,11 +15,11 @@ impl PathResolver {
             processing_algorithm: ProcessingAlgorithm,
         }
     }
-    
+
     pub fn add_vertex(&mut self, vertex_name: String) {
         self.graph.add_vertex(vertex_name);
     }
-    
+
     pub fn connect_vertices(
         &mut self,
         source_vector_name: String,
@@ -29,8 +29,14 @@ impl PathResolver {
         self.graph
             .connect_vertices(source_vector_name, destination_vector_name, weight);
     }
-    
-    pub fn resolve_optimal_path(&mut self, source: &str, destination: &str, attempts_to_cross: u32, amount_of_generated_paths: u32) -> Vec<&str> {
+
+    pub fn resolve_optimal_path(
+        &mut self,
+        source: &str,
+        destination: &str,
+        attempts_to_cross: u32,
+        amount_of_generated_paths: u32,
+    ) -> Vec<&str> {
         let random_paths = self.processing_algorithm.generate_random_routes(
             &self
                 .graph
@@ -42,6 +48,7 @@ impl PathResolver {
             &destination.to_owned(),
             amount_of_generated_paths,
         );
+
         // let pairs = self.processing_algorithm.generate_pairs(&random_paths);
         // let _crossed = self.processing_algorithm.crossover(&mut self.graph, pairs);
 
