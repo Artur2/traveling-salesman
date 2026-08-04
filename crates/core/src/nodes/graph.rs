@@ -121,7 +121,7 @@ impl Graph {
 
             let source_rc = edge.source.as_ref().unwrap();
             let destination_rc = edge.destination.as_ref().unwrap();
-            
+
 
             let borrowed_source = source_rc.borrow();
             let borrowed_destination = destination_rc.borrow();

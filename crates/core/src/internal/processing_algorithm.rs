@@ -1,12 +1,12 @@
 use crate::internal::mutable_vertex_pair::MutableVertexPair;
 use crate::internal::types::{
-    MutableVertexReference, MutableVertexReferences, WeakVertexReference, WeakVertexReferences,
+    MutableVertexReference, MutableVertexReferences, WeakVertexReferences,
 };
 use crate::nodes::edge::Edge;
 use crate::nodes::graph::Graph;
 use crate::nodes::vertex::Vertex;
 use crate::{random_index, upgrade_conditionally};
-use rand::{Rng, thread_rng};
+use rand::{thread_rng, Rng};
 use std::cell::RefCell;
 use std::cmp::max;
 use std::ops::Index;
@@ -112,7 +112,6 @@ impl ProcessingAlgorithm {
             );
 
             let new_vector = self.add_new_edges(
-                graph,
                 right_last_vertex,
                 left_first_vertex,
                 weight,
@@ -178,15 +177,13 @@ impl ProcessingAlgorithm {
 
     fn add_new_edges(
         &self,
-        graph: &mut Graph,
         right_last_vertex: &MutableVertexReference,
         left_first_vertex: &MutableVertexReference,
         weight: u32,
         right: &MutableVertexReferences,
         left: &MutableVertexReferences,
     ) -> Vec<MutableVertexReference> {
-        //TODO: Do not mutate initial structure of graph
-        Vertex::add_connection(graph, right_last_vertex, left_first_vertex, weight);
+        Vertex::add_connection(right_last_vertex, left_first_vertex, weight);
 
         let mut new_vector = vec![];
         right.iter().for_each(|vertex| {
