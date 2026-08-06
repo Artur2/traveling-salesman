@@ -98,22 +98,4 @@ impl Vertex {
             mutable_vertex.edges.push(new_edge_rc.clone());
         }
     }
-
-    pub fn get_except_edge(&self, vertices: &Vec<String>) -> Vec<&MutableEdgeReference> {
-        let edges = self
-            .edges
-            .iter()
-            .filter(|e| {
-                let borrowed_edge = e.borrow();
-                let mut found = false;
-                for vertex in vertices.iter() {
-                    found |= !borrowed_edge.has_connection(&vertex);
-                }
-
-                found
-            })
-            .collect();
-
-        edges
-    }
 }

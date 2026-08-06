@@ -3,7 +3,6 @@ use crate::internal::types::{
     MutableVertexReference, MutableVertexReferences, WeakVertexReferences,
 };
 use crate::nodes::edge::Edge;
-use crate::nodes::graph::Graph;
 use crate::nodes::vertex::Vertex;
 use crate::{random_index, upgrade_conditionally};
 use rand::{Rng, thread_rng};

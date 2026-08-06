@@ -22,15 +22,16 @@ impl Edge {
     }
 
     pub fn has_connection(&self, vertex_identifier: &String) -> bool {
-        if let (Some(source), Some(destination)) = (self.source.as_ref(), self.destination.as_ref())
-        {
-            let borrowed_source = source.borrow();
-            let borrowed_destination = destination.borrow();
+        match (self.source.as_ref(), self.destination.as_ref()) {
+            (Some(source), Some(destination)) => {
+                let borrowed_source = source.borrow();
+                let borrowed_destination = destination.borrow();
 
-            return borrowed_source.name == *vertex_identifier
-                || borrowed_destination.name == *vertex_identifier;
+                return borrowed_source.name == *vertex_identifier
+                    || borrowed_destination.name == *vertex_identifier;
+            }
+            (None, None) => panic!("Cant reach source and destination"),
+            _ => panic!(),
         }
-
-        false
     }
 }
