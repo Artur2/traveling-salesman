@@ -1,21 +1,20 @@
-use crate::internal::types::MutableEdgeReference;
 use crate::nodes::edge::Edge;
-use crate::nodes::graph::Graph;
+use crate::upgrade_conditionally;
 use std::cell::RefCell;
 use std::fmt::{Display, Formatter};
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 #[derive(Default)]
 pub(crate) struct Vertex {
-    pub name: String,
+    pub name: Weak<String>,
     pub edges: Vec<Rc<RefCell<Edge>>>,
 }
 
 impl Display for Vertex {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let mut formatted = format!("{} with edges: ", self.name);
+        let upgraded_name = upgrade_conditionally!(self.name);
+        let mut formatted = format!("{} with edges: ", upgraded_name.as_str());
         for edge in self.edges.iter() {
-            let borrowed = edge.borrow();
             formatted += edge.borrow().identifier.to_string().as_str();
         }
 
@@ -24,7 +23,7 @@ impl Display for Vertex {
 }
 
 impl Vertex {
-    pub fn new(name: String) -> Self {
+    pub fn new(name: Weak<String>) -> Self {
         Vertex {
             name,
             edges: vec![],
@@ -38,12 +37,14 @@ impl Vertex {
 
             if let Some(destination) = &borrowed_edge.destination {
                 let borrowed_vector = destination.borrow();
-                has |= borrowed_vector.name == destination_vector_name;
+                let upgraded_name = upgrade_conditionally!(borrowed_vector.name);
+                has |= upgraded_name.as_str() == destination_vector_name;
             }
 
             if let Some(source) = &borrowed_edge.source {
                 let borrowed_vector = source.borrow();
-                has |= borrowed_vector.name == destination_vector_name;
+                let upgraded_name = upgrade_conditionally!(borrowed_vector.name);
+                has |= upgraded_name.as_str() == destination_vector_name;
             }
 
             has
@@ -60,8 +61,12 @@ impl Vertex {
         let mut source_vertex_name: String = Default::default();
         let mut destination_vertex_name: String = Default::default();
         {
-            source_vertex_name += source_vertex.borrow().name.as_str();
-            destination_vertex_name += destination_vertex.borrow().name.as_str();
+            let borrowed_source_vertex = source_vertex.borrow();
+            let borrowed_destination_vertex = destination_vertex.borrow();
+            let source_name = upgrade_conditionally!(borrowed_destination_vertex.name);
+            let destination_name = upgrade_conditionally!(borrowed_source_vertex.name);
+            source_vertex_name += source_name.as_str();
+            destination_vertex_name += destination_name.as_str();
 
             edge_name = format!("{}-{}", source_vertex_name, destination_vertex_name);
         }
@@ -69,7 +74,7 @@ impl Vertex {
         let mut new_edge = Edge::new(edge_name, weight);
         new_edge.source = Some(source_vertex.clone());
         new_edge.destination = Some(destination_vertex.clone());
-        
+
         let new_edge_rc = Rc::new(RefCell::new(new_edge));
 
         let mut source_modify = false;

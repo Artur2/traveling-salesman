@@ -25,7 +25,8 @@ impl ProcessingAlgorithm {
         let starting_point = vertices.iter().find(|v| {
             let value = upgrade_conditionally!(v);
             let borrowed_v = value.borrow();
-            &borrowed_v.name == source
+            let name = upgrade_conditionally!(&borrowed_v.name);
+            name.as_str() == source.as_str()
         });
 
         if starting_point.is_none() {
@@ -77,10 +78,7 @@ impl ProcessingAlgorithm {
         return_vertices
     }
 
-    pub(crate) fn crossover(
-        &self,
-        pairs: Vec<MutableVertexPair>,
-    ) -> Vec<MutableVertexReferences> {
+    pub(crate) fn crossover(&self, pairs: Vec<MutableVertexPair>) -> Vec<MutableVertexReferences> {
         let mut crossed: Vec<MutableVertexReferences> = vec![];
         for pair in &pairs {
             // Selecting same route points with right in left pair
@@ -128,7 +126,7 @@ impl ProcessingAlgorithm {
             .iter()
             .map(|f| upgrade_conditionally!(f))
             .map(|vertex| vertex.borrow().name.clone())
-            .collect::<Vec<String>>();
+            .collect::<Vec<Weak<String>>>();
 
         let mut fit = 0;
         route.iter().enumerate().for_each(|(index, vertex)| {
@@ -149,11 +147,15 @@ impl ProcessingAlgorithm {
                 {
                     let source_borrowed = source_unwrapped.borrow();
                     let destination_borrowed = destination_unwrapped.borrow();
+                    let source_name = upgrade_conditionally!(source_borrowed.name);
+                    let destination_name = upgrade_conditionally!(destination_borrowed.name);
+                    let current_name = upgrade_conditionally!(current_vertex_name);
+                    let next_name = upgrade_conditionally!(next_vertex_name);
 
-                    return (source_borrowed.name == current_vertex_name
-                        && destination_borrowed.name == next_vertex_name)
-                        || (destination_borrowed.name == current_vertex_name
-                            && source_borrowed.name == next_vertex_name);
+                    return (source_name.as_str() == current_name.as_str()
+                        && destination_name.as_str() == next_name.as_str())
+                        || (source_name.as_str() == destination_name.as_str()
+                            && source_name.as_str() == next_name.as_str());
                 }
 
                 false
@@ -213,7 +215,11 @@ impl ProcessingAlgorithm {
         pair.left.iter().for_each(|vertex| {
             let borrowed_v = vertex.borrow();
             let found_in_right_vector = pair.right.iter().any(|v| match v.try_borrow() {
-                Ok(v) => v.name == borrowed_v.name,
+                Ok(v) => {
+                    let left_name = upgrade_conditionally!(v.name);
+                    let right_name = upgrade_conditionally!(borrowed_v.name);
+                    left_name.as_str() == right_name.as_str()
+                }
                 Err(_) => false,
             });
             if found_in_right_vector {
@@ -235,7 +241,9 @@ impl ProcessingAlgorithm {
             left_index += 1;
             let left_vertex = vertex.borrow();
             let vertex_borrow = random_vertex.borrow();
-            vertex_borrow.name == left_vertex.name
+            let borrowed_name = upgrade_conditionally!(vertex_borrow.name);
+            let left_name = upgrade_conditionally!(left_vertex.name);
+            borrowed_name.eq(&left_name)
         });
 
         let mut right_index = 0;
@@ -243,7 +251,9 @@ impl ProcessingAlgorithm {
             right_index += 1;
             let right_vertex = vertex.borrow();
             let random_vertex_borrowed = random_vertex.borrow();
-            right_vertex.name == random_vertex_borrowed.name
+            let borrowed_name = upgrade_conditionally!(random_vertex_borrowed.name);
+            let right_vertex_name = upgrade_conditionally!(right_vertex.name);
+            right_vertex_name.eq(&borrowed_name)
         });
 
         (left_index, right_index)
@@ -275,7 +285,11 @@ impl ProcessingAlgorithm {
                 None => false,
                 Some(v) => {
                     let borrowed = v.borrow();
-                    let equal = borrowed.name == left_first_vertex.borrow().name;
+                    let first_vertex_borrowed = left_first_vertex.borrow();
+                    let first_vertex_name = upgrade_conditionally!(first_vertex_borrowed.name);
+                    let name = upgrade_conditionally!(borrowed.name);
+
+                    let equal = first_vertex_name.eq(&name);
                     if equal {
                         weight = borrowed_edge.weight;
                     }
@@ -292,7 +306,11 @@ impl ProcessingAlgorithm {
                 None => false,
                 Some(v) => {
                     let borrowed = v.borrow();
-                    borrowed.name == right_last_vertex.borrow().name
+                    let right_vertex = right_last_vertex.borrow();
+                    let name = upgrade_conditionally!(borrowed.name);
+                    let right_name = upgrade_conditionally!(right_vertex.name);
+
+                    name.eq(&right_name)
                 }
             }
         });
@@ -344,10 +362,12 @@ impl ProcessingAlgorithm {
                         let borrowed_vertex_source = vertex_source.borrow();
 
                         // Если не посетили данную точку, то все путь кладем в стек
-                        if !visited_vertices
-                            .iter()
-                            .any(|f| f.borrow().name == borrowed_vertex_source.name)
-                        {
+                        if !visited_vertices.iter().any(|f| {
+                            let borrowed_vertex = f.borrow();
+                            let name_left = upgrade_conditionally!(borrowed_vertex.name);
+                            let name_righ = upgrade_conditionally!(borrowed_vertex_source.name);
+                            name_left.as_str() == name_righ.as_str()
+                        }) {
                             let random_value = random_index!(&borrowed_vertex_source);
                             let random_edge = &borrowed_vertex_source.edges[random_value];
                             stack.push(random_edge.clone());
@@ -357,16 +377,21 @@ impl ProcessingAlgorithm {
                             let new_vertex_rc = Rc::new(RefCell::new(new_vertex));
                             resulting_vertices.push((borrowed_edge.weight, new_vertex_rc.clone()));
 
-                            if borrowed_vertex_source.name == destination_identity {
+                            let vertex_source_name =
+                                upgrade_conditionally!(borrowed_vertex_source.name);
+                            if vertex_source_name.as_str() == destination_identity {
                                 return self.connect_vertices(resulting_vertices);
                             }
                         }
 
                         // Если не посетили данную точку, то все пути кладем в стек
-                        if !visited_vertices
-                            .iter()
-                            .any(|f| f.borrow().name == borrowed_vertex_destination.name)
-                        {
+                        if !visited_vertices.iter().any(|f| {
+                            let borrowed_vertex = f.borrow();
+                            let name_left = upgrade_conditionally!(borrowed_vertex.name);
+                            let name_righ =
+                                upgrade_conditionally!(borrowed_vertex_destination.name);
+                            name_left.as_str() == name_righ.as_str()
+                        }) {
                             let random_value = random_index!(&borrowed_vertex_destination);
                             let random_edge = &borrowed_vertex_destination.edges[random_value];
                             stack.push(random_edge.clone());
@@ -375,8 +400,9 @@ impl ProcessingAlgorithm {
                             let new_vertex = Vertex::new(borrowed_vertex_destination.name.clone());
                             let new_vertex_rc = Rc::new(RefCell::new(new_vertex));
                             resulting_vertices.push((borrowed_edge.weight, new_vertex_rc.clone()));
-
-                            if borrowed_vertex_destination.name == destination_identity {
+                            let borrowed_vertex_name =
+                                upgrade_conditionally!(borrowed_vertex_destination.name);
+                            if borrowed_vertex_name.as_str() == destination_identity {
                                 return self.connect_vertices(resulting_vertices);
                             }
                         }
@@ -405,9 +431,11 @@ impl ProcessingAlgorithm {
 
             let mut borrowed_vertex = current_vertex.1.borrow_mut();
             let mut borrowed_next_vertex = next_vertex.1.borrow_mut();
+            let borrowed_vertex_name = upgrade_conditionally!(borrowed_vertex.name);
+            let borrowed_next_vertex_name = upgrade_conditionally!(borrowed_next_vertex.name);
 
             let mut new_edge = Edge::new(
-                format!("{}-{}", borrowed_vertex.name, borrowed_next_vertex.name).to_owned(),
+                format!("{}-{}", borrowed_vertex_name, borrowed_next_vertex_name).to_owned(),
                 current_vertex.0,
             );
             new_edge.source = Some(current_vertex.1.clone());
@@ -608,12 +636,20 @@ mod tests {
         let processing_algorithm = ProcessingAlgorithm::default();
         let starting_point = graph.vertex_references.iter().find(|p| {
             let borrowed = p.borrow();
-            borrowed.name == "Березовский"
+            let borrowed_name = upgrade_conditionally!(borrowed.name);
+            borrowed_name.as_str() == "Березовский"
         });
 
-        for _ in 0..1000 {
-            let generation_result = processing_algorithm
+        let mut generation_results = vec![];
+
+        for _ in 0..100_000 {
+            let results = processing_algorithm
                 .generate_random_route(&Rc::downgrade(starting_point.unwrap()), "Дегтярск");
+            if results.len() > 0 {
+                generation_results.push(results);
+            }
         }
+
+        assert!(generation_results.len() > 0)
     }
 }

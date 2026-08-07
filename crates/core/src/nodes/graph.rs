@@ -2,6 +2,7 @@
 #![allow(unused_imports)]
 #![allow(dead_code)]
 
+use crate::internal::string_pool::StringPool;
 use crate::internal::types::{MutableEdgeReferences, MutableVertexReferences};
 use crate::nodes::connection_type::ConnectionType;
 use crate::nodes::edge::Edge;
@@ -20,6 +21,7 @@ pub(crate) struct Graph {
     pub vertex_references: MutableVertexReferences,
     /// Flat edge references
     pub edge_references: MutableEdgeReferences,
+    pub string_pool: StringPool
 }
 
 impl Graph {
@@ -28,6 +30,7 @@ impl Graph {
             name,
             vertex_references: vec![],
             edge_references: vec![],
+            string_pool: StringPool::new()
         }
     }
 
@@ -35,12 +38,14 @@ impl Graph {
     pub(crate) fn add_vertex(&mut self, name: String) {
         let found = self.vertex_references.iter().find(|v| {
             let borrowed_v = v.borrow();
-            borrowed_v.name == name
+            let upgraded_name = upgrade_conditionally!(borrowed_v.name);
+            upgraded_name.as_str() == name.as_str()
         });
 
         match found {
             None => {
-                let new_vertex = Vertex::new(name);
+                let weak_name = self.string_pool.intern(name);
+                let new_vertex = Vertex::new(weak_name);
                 let cell = RefCell::new(new_vertex);
                 let rc = Rc::new(cell);
                 self.vertex_references.push(rc);
@@ -61,11 +66,13 @@ impl Graph {
 
         let found_source_vector = self.vertex_references.iter().find(|v| {
             let borrowed_v = v.borrow();
-            borrowed_v.name == source_vector_name
+            let name = upgrade_conditionally!(borrowed_v.name);
+            name.as_str() == source_vector_name.as_str()
         });
         let found_destination_vector = self.vertex_references.iter().find(|v| {
             let borrowed_v = v.borrow();
-            borrowed_v.name == destination_vector_name
+            let name = upgrade_conditionally!(borrowed_v.name);
+            name.as_str() == destination_vector_name.as_str()
         });
 
         if found_source_vector.is_none() || found_destination_vector.is_none() {
@@ -77,7 +84,9 @@ impl Graph {
 
         let mut source_vector = source_vector_reference.borrow_mut();
         let mut destination_vector = destination_vector_reference.borrow_mut();
-        let edge_identifier = format!("{}-{}", source_vector.name, destination_vector.name);
+        let source_vector_name = upgrade_conditionally!(source_vector.name);
+        let destination_vector_name = upgrade_conditionally!(destination_vector.name);
+        let edge_identifier = format!("{}-{}", source_vector_name, destination_vector_name);
         let mut edge = Edge::new(edge_identifier.to_owned(), weight);
         edge.source = Some(source_vector_reference.clone());
         edge.destination = Some(destination_vector_reference.clone());
@@ -93,7 +102,8 @@ impl Graph {
     pub(crate) fn has_vertex(&self, name: &str) -> bool {
         let found = self.vertex_references.iter().find(|v| {
             let borrowed_v = v.borrow();
-            borrowed_v.name == name
+            let name = upgrade_conditionally!(borrowed_v.name);
+            name.as_str() == name.as_str()
         });
 
         found.is_some()
@@ -124,9 +134,11 @@ impl Graph {
 
             let borrowed_source = source_rc.borrow();
             let borrowed_destination = destination_rc.borrow();
+            let borrowed_source_name = upgrade_conditionally!(borrowed_source.name);
+            let borrowed_destination_name = upgrade_conditionally!(borrowed_destination.name);
 
-            return (&borrowed_source.name == source && &borrowed_destination.name == destination)
-                || (&borrowed_source.name == destination && &borrowed_destination.name == source);
+            return (borrowed_source_name.as_str() == source.as_str() && borrowed_destination_name.as_str() == destination.as_str())
+                || (borrowed_source_name.as_str() == destination.as_str() && borrowed_destination_name.as_str() == source.as_str());
         })
     }
 

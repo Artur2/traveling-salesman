@@ -1,6 +1,7 @@
 use crate::nodes::vertex::Vertex;
+use crate::upgrade_conditionally;
 use std::cell::RefCell;
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
 type OptionalVertexRc = Option<Rc<RefCell<Vertex>>>;
 
@@ -26,9 +27,11 @@ impl Edge {
             (Some(source), Some(destination)) => {
                 let borrowed_source = source.borrow();
                 let borrowed_destination = destination.borrow();
+                let source_name = upgrade_conditionally!(borrowed_source.name);
+                let destination_name = upgrade_conditionally!(borrowed_destination.name);
 
-                return borrowed_source.name == *vertex_identifier
-                    || borrowed_destination.name == *vertex_identifier;
+                return source_name.as_str() == *vertex_identifier
+                    || destination_name.as_str() == *vertex_identifier;
             }
             (None, None) => panic!("Cant reach source and destination"),
             _ => panic!(),
