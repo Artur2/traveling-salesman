@@ -26,7 +26,7 @@ impl ProcessingAlgorithm {
             let value = upgrade_conditionally!(v);
             let borrowed_v = value.borrow();
             let name = upgrade_conditionally!(&borrowed_v.name);
-            name.as_str() == source.as_str()
+            name.as_str() == source
         });
 
         if starting_point.is_none() {
@@ -152,10 +152,10 @@ impl ProcessingAlgorithm {
                     let current_name = upgrade_conditionally!(current_vertex_name);
                     let next_name = upgrade_conditionally!(next_vertex_name);
 
-                    return (source_name.as_str() == current_name.as_str()
-                        && destination_name.as_str() == next_name.as_str())
-                        || (source_name.as_str() == destination_name.as_str()
-                            && source_name.as_str() == next_name.as_str());
+                    return (source_name.eq(&current_name)
+                        && destination_name.eq(&next_name))
+                        || (source_name.eq(&destination_name)
+                            && source_name.eq(&next_name));
                 }
 
                 false
@@ -218,7 +218,7 @@ impl ProcessingAlgorithm {
                 Ok(v) => {
                     let left_name = upgrade_conditionally!(v.name);
                     let right_name = upgrade_conditionally!(borrowed_v.name);
-                    left_name.as_str() == right_name.as_str()
+                    left_name.eq(&right_name)
                 }
                 Err(_) => false,
             });
@@ -366,7 +366,7 @@ impl ProcessingAlgorithm {
                             let borrowed_vertex = f.borrow();
                             let name_left = upgrade_conditionally!(borrowed_vertex.name);
                             let name_righ = upgrade_conditionally!(borrowed_vertex_source.name);
-                            name_left.as_str() == name_righ.as_str()
+                            name_left.eq(&name_righ)
                         }) {
                             let random_value = random_index!(&borrowed_vertex_source);
                             let random_edge = &borrowed_vertex_source.edges[random_value];
@@ -390,7 +390,7 @@ impl ProcessingAlgorithm {
                             let name_left = upgrade_conditionally!(borrowed_vertex.name);
                             let name_righ =
                                 upgrade_conditionally!(borrowed_vertex_destination.name);
-                            name_left.as_str() == name_righ.as_str()
+                            name_left.eq(&name_righ)
                         }) {
                             let random_value = random_index!(&borrowed_vertex_destination);
                             let random_edge = &borrowed_vertex_destination.edges[random_value];

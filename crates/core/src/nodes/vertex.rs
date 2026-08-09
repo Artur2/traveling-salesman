@@ -51,7 +51,6 @@ impl Vertex {
         })
     }
 
-    #[allow(unused_assignments)]
     pub fn add_connection(
         source_vertex: &Rc<RefCell<Vertex>>,
         destination_vertex: &Rc<RefCell<Vertex>>,
