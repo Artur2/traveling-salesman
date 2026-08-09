@@ -121,10 +121,9 @@ impl ProcessingAlgorithm {
         crossed
     }
 
-    pub(crate) fn get_fit_value(&self, route: &WeakVertexReferences) -> u32 {
+    pub(crate) fn get_fit_value(&self, route: &MutableVertexReferences) -> u32 {
         let route_path = route
             .iter()
-            .map(|f| upgrade_conditionally!(f))
             .map(|vertex| vertex.borrow().name.clone())
             .collect::<Vec<Weak<String>>>();
 
@@ -135,9 +134,8 @@ impl ProcessingAlgorithm {
             }
             let current_vertex_name = route_path[index].clone();
             let next_vertex_name = route_path[index + 1].clone();
-            let vertex_upgraded = upgrade_conditionally!(vertex);
 
-            let borrowed = vertex_upgraded.borrow();
+            let borrowed = vertex.borrow();
 
             let edge = borrowed.edges.iter().find(|p| {
                 let edge = p.borrow();
@@ -532,7 +530,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     pub fn get_pairs_of_random_routes() {
         let graph = create_graph();
         let processing_algorithm = ProcessingAlgorithm::default();
@@ -547,13 +544,11 @@ mod tests {
             10,
         );
 
-        unimplemented!();
-        // let result = processing_algorithm.generate_pairs(&random_routes);
-        // assert!(result.len() > 0);
+        let result = processing_algorithm.generate_pairs(&random_routes);
+        assert!(result.len() > 0);
     }
 
     #[test]
-    #[ignore]
     pub fn get_crossover_should_return_correct_results() {
         let graph = &mut create_graph();
         let processing_algorithm = ProcessingAlgorithm::default();
@@ -568,14 +563,13 @@ mod tests {
             1000,
         );
 
-        unimplemented!();
-        // let result = processing_algorithm.generate_pairs(&random_routes);
-        // let crossed = processing_algorithm.crossover(graph, result);
-        // assert!(crossed.len() > 0);
+    
+        let result = processing_algorithm.generate_pairs(&random_routes);
+        let crossed = processing_algorithm.crossover(result);
+        assert!(crossed.len() > 0);
     }
 
     #[test]
-    #[ignore]
     pub fn get_fit_value_should_correct_pass_through() {
         let graph = &mut create_graph();
         let processing_algorithm = ProcessingAlgorithm::default();
@@ -591,25 +585,24 @@ mod tests {
             100,
         );
 
-        unimplemented!()
-        // let elapsed_generation = time.elapsed().as_micros();
-        // time = Instant::now();
-        // random_routes.iter().for_each(|r| {
-        //     let fit_value = processing_algorithm.get_fit_value(r);
-        //     assert!(fit_value > 0);
-        // });
-        //
-        // let elapsed_fit = time.elapsed().as_micros();
-        // println!(
-        //     "Generated in {:?} μs, fitted in {:?} μs",
-        //     elapsed_generation, elapsed_fit
-        // );
+
+        let elapsed_generation = time.elapsed().as_micros();
+        time = Instant::now();
+        random_routes.iter().for_each(|r| {
+            let fit_value = processing_algorithm.get_fit_value(r);
+            assert!(fit_value > 0);
+        });
+        
+        let elapsed_fit = time.elapsed().as_micros();
+        println!(
+            "Generated in {:?} μs, fitted in {:?} μs",
+            elapsed_generation, elapsed_fit
+        );
     }
 
     #[test]
-    #[ignore]
     pub fn crossover_should_work_as_expected() {
-        let mut graph = create_complex_graph();
+        let graph = create_complex_graph();
 
         let processing_algorithm = ProcessingAlgorithm::default();
         let random_routes = processing_algorithm.generate_random_routes(
@@ -623,11 +616,10 @@ mod tests {
             1000,
         );
 
-        unimplemented!();
-        // let pairs = processing_algorithm.generate_pairs(&random_routes);
-        // let result = processing_algorithm.crossover(&mut graph, pairs);
-        //
-        // assert!(result.len() > 0);
+        let pairs = processing_algorithm.generate_pairs(&random_routes);
+        let result = processing_algorithm.crossover(pairs);
+        
+        assert!(result.len() > 0);
     }
 
     #[test]
