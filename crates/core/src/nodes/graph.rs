@@ -39,7 +39,7 @@ impl Graph {
         let found = self.vertex_references.iter().find(|v| {
             let borrowed_v = v.borrow();
             let upgraded_name = upgrade_conditionally!(borrowed_v.name);
-            upgraded_name.as_str() == name.as_str()
+            upgraded_name.as_ref() == name.as_str()
         });
 
         match found {
@@ -67,12 +67,12 @@ impl Graph {
         let found_source_vector = self.vertex_references.iter().find(|v| {
             let borrowed_v = v.borrow();
             let name = upgrade_conditionally!(borrowed_v.name);
-            name.as_str() == source_vector_name.as_str()
+            name.as_ref() == source_vector_name.as_str()
         });
         let found_destination_vector = self.vertex_references.iter().find(|v| {
             let borrowed_v = v.borrow();
             let name = upgrade_conditionally!(borrowed_v.name);
-            name.as_str() == destination_vector_name.as_str()
+            name.as_ref() == destination_vector_name.as_str()
         });
 
         if found_source_vector.is_none() || found_destination_vector.is_none() {
@@ -103,7 +103,7 @@ impl Graph {
         let found = self.vertex_references.iter().find(|v| {
             let borrowed_v = v.borrow();
             let name = upgrade_conditionally!(borrowed_v.name);
-            name.as_str() == name.as_str()
+            name.as_ref() == name.as_ref()
         });
 
         found.is_some()
@@ -137,8 +137,8 @@ impl Graph {
             let borrowed_source_name = upgrade_conditionally!(borrowed_source.name);
             let borrowed_destination_name = upgrade_conditionally!(borrowed_destination.name);
 
-            return (borrowed_source_name.as_str() == source.as_str() && borrowed_destination_name.as_str() == destination.as_str())
-                || (borrowed_source_name.as_str() == destination.as_str() && borrowed_destination_name.as_str() == source.as_str());
+            return (borrowed_source_name.as_ref() == source.as_str() && borrowed_destination_name.as_ref() == destination.as_str())
+                || (borrowed_source_name.as_ref() == destination.as_str() && borrowed_destination_name.as_ref() == source.as_str());
         })
     }
 

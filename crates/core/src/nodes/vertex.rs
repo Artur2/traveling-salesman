@@ -4,16 +4,15 @@ use std::cell::RefCell;
 use std::fmt::{Display, Formatter};
 use std::rc::{Rc, Weak};
 
-#[derive(Default)]
 pub(crate) struct Vertex {
-    pub name: Weak<String>,
+    pub name: Weak<str>,
     pub edges: Vec<Rc<RefCell<Edge>>>,
 }
 
 impl Display for Vertex {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let upgraded_name = upgrade_conditionally!(self.name);
-        let mut formatted = format!("{} with edges: ", upgraded_name.as_str());
+        let mut formatted = format!("{} with edges: ", upgraded_name);
         for edge in self.edges.iter() {
             formatted += edge.borrow().identifier.to_string().as_str();
         }
@@ -23,7 +22,7 @@ impl Display for Vertex {
 }
 
 impl Vertex {
-    pub fn new(name: Weak<String>) -> Self {
+    pub fn new(name: Weak<str>) -> Self {
         Vertex {
             name,
             edges: vec![],
@@ -38,13 +37,13 @@ impl Vertex {
             if let Some(destination) = &borrowed_edge.destination {
                 let borrowed_vector = destination.borrow();
                 let upgraded_name = upgrade_conditionally!(borrowed_vector.name);
-                has |= upgraded_name.as_str() == destination_vector_name;
+                has |= upgraded_name.as_ref() == destination_vector_name;
             }
 
             if let Some(source) = &borrowed_edge.source {
                 let borrowed_vector = source.borrow();
                 let upgraded_name = upgrade_conditionally!(borrowed_vector.name);
-                has |= upgraded_name.as_str() == destination_vector_name;
+                has |= upgraded_name.as_ref() == destination_vector_name;
             }
 
             has
@@ -64,8 +63,8 @@ impl Vertex {
             let borrowed_destination_vertex = destination_vertex.borrow();
             let source_name = upgrade_conditionally!(borrowed_destination_vertex.name);
             let destination_name = upgrade_conditionally!(borrowed_source_vertex.name);
-            source_vertex_name += source_name.as_str();
-            destination_vertex_name += destination_name.as_str();
+            source_vertex_name += source_name.as_ref();
+            destination_vertex_name += destination_name.as_ref();
 
             edge_name = format!("{}-{}", source_vertex_name, destination_vertex_name);
         }

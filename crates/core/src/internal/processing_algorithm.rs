@@ -26,7 +26,7 @@ impl ProcessingAlgorithm {
             let value = upgrade_conditionally!(v);
             let borrowed_v = value.borrow();
             let name = upgrade_conditionally!(&borrowed_v.name);
-            name.as_str() == source
+            name.as_ref() == source
         });
 
         if starting_point.is_none() {
@@ -125,7 +125,7 @@ impl ProcessingAlgorithm {
         let route_path = route
             .iter()
             .map(|vertex| vertex.borrow().name.clone())
-            .collect::<Vec<Weak<String>>>();
+            .collect::<Vec<Weak<str>>>();
 
         let mut fit = 0;
         route.iter().enumerate().for_each(|(index, vertex)| {
@@ -377,7 +377,7 @@ impl ProcessingAlgorithm {
 
                             let vertex_source_name =
                                 upgrade_conditionally!(borrowed_vertex_source.name);
-                            if vertex_source_name.as_str() == destination_identity {
+                            if vertex_source_name.as_ref() == destination_identity {
                                 return self.connect_vertices(resulting_vertices);
                             }
                         }
@@ -400,7 +400,7 @@ impl ProcessingAlgorithm {
                             resulting_vertices.push((borrowed_edge.weight, new_vertex_rc.clone()));
                             let borrowed_vertex_name =
                                 upgrade_conditionally!(borrowed_vertex_destination.name);
-                            if borrowed_vertex_name.as_str() == destination_identity {
+                            if borrowed_vertex_name.as_ref() == destination_identity {
                                 return self.connect_vertices(resulting_vertices);
                             }
                         }
@@ -629,7 +629,7 @@ mod tests {
         let starting_point = graph.vertex_references.iter().find(|p| {
             let borrowed = p.borrow();
             let borrowed_name = upgrade_conditionally!(borrowed.name);
-            borrowed_name.as_str() == "Березовский"
+            borrowed_name.as_ref() == "Березовский"
         });
 
         let mut generation_results = vec![];

@@ -2,7 +2,7 @@ use std::rc::{Rc, Weak};
 
 #[derive(Default)]
 pub struct StringPool {
-    string_references: Vec<Rc<String>>,
+    string_references: Vec<Rc<str>>,
 }
 
 impl StringPool {
@@ -12,16 +12,16 @@ impl StringPool {
         }
     }
 
-    pub fn intern(&mut self, interning_string: String) -> Weak<String> {
+    pub fn intern(&mut self, interning_string: String) -> Weak<str> {
         let interned_string = self
             .string_references
             .iter()
-            .find(|rc| rc.as_str() == interning_string.as_str());
+            .find(|rc| rc.as_ref().eq(&interning_string));
 
         if interned_string.is_some() {
             Rc::downgrade(&interned_string.unwrap())
         } else {
-            let new_reference = Rc::new(interning_string);
+            let new_reference = Rc::from(interning_string.as_str());
             let weak_reference = Rc::downgrade(&new_reference);
             self.string_references.push(new_reference);
             weak_reference

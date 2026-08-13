@@ -30,8 +30,8 @@ impl Edge {
                 let source_name = upgrade_conditionally!(borrowed_source.name);
                 let destination_name = upgrade_conditionally!(borrowed_destination.name);
 
-                return source_name.as_str() == *vertex_identifier
-                    || destination_name.as_str() == *vertex_identifier;
+                source_name.as_ref() == *vertex_identifier
+                    || destination_name.as_ref() == *vertex_identifier
             }
             (None, None) => panic!("Cant reach source and destination"),
             _ => panic!(),
