@@ -3,22 +3,11 @@ use crate::upgrade_conditionally;
 use std::cell::RefCell;
 use std::fmt::{Display, Formatter};
 use std::rc::{Rc, Weak};
+use crate::internal::string_pool::StringPool;
 
 pub(crate) struct Vertex {
     pub name: Weak<str>,
     pub edges: Vec<Rc<RefCell<Edge>>>,
-}
-
-impl Display for Vertex {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let upgraded_name = upgrade_conditionally!(self.name);
-        let mut formatted = format!("{} with edges: ", upgraded_name);
-        for edge in self.edges.iter() {
-            formatted += edge.borrow().identifier.to_string().as_str();
-        }
-
-        write!(f, "{}", formatted)
-    }
 }
 
 impl Vertex {
@@ -51,6 +40,7 @@ impl Vertex {
     }
 
     pub fn add_connection(
+        string_pool: &mut StringPool,
         source_vertex: &Rc<RefCell<Vertex>>,
         destination_vertex: &Rc<RefCell<Vertex>>,
         weight: u32,
@@ -61,15 +51,15 @@ impl Vertex {
         {
             let borrowed_source_vertex = source_vertex.borrow();
             let borrowed_destination_vertex = destination_vertex.borrow();
-            let source_name = upgrade_conditionally!(borrowed_destination_vertex.name);
-            let destination_name = upgrade_conditionally!(borrowed_source_vertex.name);
+            let source_name = upgrade_conditionally!(borrowed_source_vertex.name);
+            let destination_name = upgrade_conditionally!(borrowed_destination_vertex.name);
             source_vertex_name += source_name.as_ref();
             destination_vertex_name += destination_name.as_ref();
 
             edge_name = format!("{}-{}", source_vertex_name, destination_vertex_name);
         }
 
-        let mut new_edge = Edge::new(edge_name, weight);
+        let mut new_edge = Edge::new(string_pool.intern(edge_name), weight);
         new_edge.source = Some(source_vertex.clone());
         new_edge.destination = Some(destination_vertex.clone());
 

@@ -36,7 +36,7 @@ mod tests {
     pub fn intern_string_should_return_weak_reference() {
         let mut pool = StringPool::new();
         let value = pool.intern("Test".to_owned());
-        assert!(value.strong_count() == 1);
-        assert!(value.weak_count() == 1);
+        assert_eq!(value.strong_count(), 1);
+        assert_eq!(value.weak_count(), 1);
     }
 }

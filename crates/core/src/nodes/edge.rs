@@ -1,24 +1,24 @@
 use crate::nodes::vertex::Vertex;
 use crate::upgrade_conditionally;
 use std::cell::RefCell;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 type OptionalVertexRc = Option<Rc<RefCell<Vertex>>>;
 
-#[derive(Default)]
 pub(crate) struct Edge {
-    pub identifier: String,
+    pub identifier: Weak<str>,
     pub weight: u32,
     pub source: OptionalVertexRc,
     pub destination: OptionalVertexRc,
 }
 
 impl Edge {
-    pub fn new(identifier: String, weight: u32) -> Self {
+    pub fn new(identifier: Weak<str>, weight: u32) -> Self {
         Self {
             identifier,
             weight,
-            ..Default::default()
+            source: None,
+            destination: None
         }
     }
 

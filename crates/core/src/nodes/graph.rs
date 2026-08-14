@@ -87,7 +87,7 @@ impl Graph {
         let source_vector_name = upgrade_conditionally!(source_vector.name);
         let destination_vector_name = upgrade_conditionally!(destination_vector.name);
         let edge_identifier = format!("{}-{}", source_vector_name, destination_vector_name);
-        let mut edge = Edge::new(edge_identifier.to_owned(), weight);
+        let mut edge = Edge::new(self.string_pool.intern(edge_identifier), weight);
         edge.source = Some(source_vector_reference.clone());
         edge.destination = Some(destination_vector_reference.clone());
         let edge_rc = Rc::new(RefCell::new(edge));
@@ -113,7 +113,8 @@ impl Graph {
     pub(crate) fn has_edge(&self, identifier: &str) -> bool {
         let found = self.edge_references.iter().find(|e| {
             let borrowed_e = e.borrow();
-            borrowed_e.identifier == identifier
+            let upgraded_identifier = upgrade_conditionally!(borrowed_e.identifier);
+            (*upgraded_identifier).eq(identifier)
         });
 
         found.is_some()
@@ -148,7 +149,11 @@ impl Graph {
             .edge_references
             .iter()
             .map(|v| v.borrow())
-            .find(|e| e.identifier == identifier);
+            .find(|e| {
+                let upgraded_identifier = upgrade_conditionally!(e.identifier);
+                let raw = &*upgraded_identifier;
+                raw.eq(identifier)
+            });
 
         if found.is_none() {
             return false;

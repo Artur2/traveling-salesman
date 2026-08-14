@@ -1,4 +1,5 @@
 use crate::internal::mutable_vertex_pair::MutableVertexPair;
+use crate::internal::string_pool::StringPool;
 use crate::internal::types::{
     MutableVertexReference, MutableVertexReferences, WeakVertexReferences,
 };
@@ -17,6 +18,7 @@ pub(crate) struct ProcessingAlgorithm;
 impl ProcessingAlgorithm {
     pub(crate) fn generate_random_routes(
         &self,
+        string_pool: &mut StringPool,
         vertices: &WeakVertexReferences,
         source: &String,
         destination: &String,
@@ -34,8 +36,9 @@ impl ProcessingAlgorithm {
         }
 
         let mut random_paths = vec![];
-        for _ in 0..amount_of_generations {
-            let routes = self.generate_random_route(starting_point.unwrap(), destination);
+        while random_paths.len() < amount_of_generations as usize {
+            let routes =
+                self.generate_random_route(string_pool, starting_point.unwrap(), destination);
             if routes.is_empty() {
                 // Пропускаем роуты, которые не дошли до конечной точки
                 continue;
@@ -78,9 +81,13 @@ impl ProcessingAlgorithm {
         return_vertices
     }
 
-    pub(crate) fn crossover(&self, pairs: Vec<MutableVertexPair>) -> Vec<MutableVertexReferences> {
+    pub(crate) fn crossover(
+        &self,
+        string_pool: &mut StringPool,
+        pairs: &Vec<MutableVertexPair>,
+    ) -> Vec<MutableVertexReferences> {
         let mut crossed: Vec<MutableVertexReferences> = vec![];
-        for pair in &pairs {
+        for pair in pairs {
             // Selecting same route points with right in left pair
             let same_points = self.select_same_route_points_in_pair(&pair);
 
@@ -95,19 +102,11 @@ impl ProcessingAlgorithm {
             let right_slice = pair.right[..right_index as usize].to_vec();
             let left_slice = pair.left[left_index as usize..].to_vec();
 
-            // Calculating edges to remove
-            let (right_index, left_index, right_last_vertex, left_first_vertex, weight) =
-                self.calculate_edges_in_left_right_routes_to_remove(&right_slice, &left_slice);
-
-            // Removing redundant edges
-            self.remove_edges(
-                right_last_vertex,
-                left_first_vertex,
-                right_index,
-                left_index,
-            );
+            let (right_last_vertex, left_first_vertex, weight) =
+                self.calculate_edges_in_left_right_routes_to_add(&right_slice, &left_slice);
 
             let new_vector = self.add_new_edges(
+                string_pool,
                 right_last_vertex,
                 left_first_vertex,
                 weight,
@@ -115,7 +114,6 @@ impl ProcessingAlgorithm {
                 &left_slice,
             );
             crossed.push(new_vector);
-            // TODO: Add tests to check logic
         }
 
         crossed
@@ -150,10 +148,8 @@ impl ProcessingAlgorithm {
                     let current_name = upgrade_conditionally!(current_vertex_name);
                     let next_name = upgrade_conditionally!(next_vertex_name);
 
-                    return (source_name.eq(&current_name)
-                        && destination_name.eq(&next_name))
-                        || (source_name.eq(&destination_name)
-                            && source_name.eq(&next_name));
+                    return (source_name.eq(&current_name) && destination_name.eq(&next_name))
+                        || (destination_name.eq(&current_name) && source_name.eq(&next_name));
                 }
 
                 false
@@ -172,13 +168,14 @@ impl ProcessingAlgorithm {
 
     fn add_new_edges(
         &self,
+        string_pool: &mut StringPool,
         right_last_vertex: &MutableVertexReference,
         left_first_vertex: &MutableVertexReference,
         weight: u32,
         right: &MutableVertexReferences,
         left: &MutableVertexReferences,
     ) -> Vec<MutableVertexReference> {
-        Vertex::add_connection(right_last_vertex, left_first_vertex, weight);
+        Vertex::add_connection(string_pool, right_last_vertex, left_first_vertex, weight);
 
         let mut new_vector = vec![];
         right.iter().for_each(|vertex| {
@@ -251,32 +248,23 @@ impl ProcessingAlgorithm {
             let random_vertex_borrowed = random_vertex.borrow();
             let borrowed_name = upgrade_conditionally!(random_vertex_borrowed.name);
             let right_vertex_name = upgrade_conditionally!(right_vertex.name);
-            right_vertex_name.eq(&borrowed_name)
+            borrowed_name.eq(&right_vertex_name)
         });
 
         (left_index, right_index)
     }
 
-    fn calculate_edges_in_left_right_routes_to_remove<'a>(
+    fn calculate_edges_in_left_right_routes_to_add<'a>(
         &self,
         right: &'a MutableVertexReferences,
         left: &'a MutableVertexReferences,
-    ) -> (
-        u32,
-        u32,
-        &'a MutableVertexReference,
-        &'a MutableVertexReference,
-        u32,
-    ) {
+    ) -> (&'a MutableVertexReference, &'a MutableVertexReference, u32) {
         // Searching index of edges in left, right slice to remove
-        let mut index_to_remove_edge_in_right: i32 = -1;
-        let mut index_to_remove_edge_in_left: i32 = -1;
         let mut weight = 0;
         let right_last_vertex = right.last().unwrap();
         let left_first_vertex = left.first().unwrap();
 
         _ = right_last_vertex.borrow().edges.iter().any(|edge| {
-            index_to_remove_edge_in_right += 1;
             let borrowed_edge = edge.borrow();
             let destination_vertex = borrowed_edge.destination.as_ref();
             match destination_vertex {
@@ -297,7 +285,6 @@ impl ProcessingAlgorithm {
         });
 
         _ = left_first_vertex.borrow().edges.iter().any(|edge| {
-            index_to_remove_edge_in_left += 1;
             let borrowed_edge = edge.borrow();
             let source_vertex = borrowed_edge.source.as_ref();
             match source_vertex {
@@ -313,17 +300,12 @@ impl ProcessingAlgorithm {
             }
         });
 
-        (
-            index_to_remove_edge_in_right as u32,
-            index_to_remove_edge_in_left as u32,
-            right_last_vertex,
-            left_first_vertex,
-            weight,
-        )
+        (right_last_vertex, left_first_vertex, weight)
     }
 
     fn generate_random_route(
         &self,
+        string_pool: &mut StringPool,
         starting_point: &Weak<RefCell<Vertex>>,
         destination_identity: &str,
     ) -> Vec<MutableVertexReference> {
@@ -363,8 +345,8 @@ impl ProcessingAlgorithm {
                         if !visited_vertices.iter().any(|f| {
                             let borrowed_vertex = f.borrow();
                             let name_left = upgrade_conditionally!(borrowed_vertex.name);
-                            let name_righ = upgrade_conditionally!(borrowed_vertex_source.name);
-                            name_left.eq(&name_righ)
+                            let name_right = upgrade_conditionally!(borrowed_vertex_source.name);
+                            name_left.eq(&name_right)
                         }) {
                             let random_value = random_index!(&borrowed_vertex_source);
                             let random_edge = &borrowed_vertex_source.edges[random_value];
@@ -378,7 +360,7 @@ impl ProcessingAlgorithm {
                             let vertex_source_name =
                                 upgrade_conditionally!(borrowed_vertex_source.name);
                             if vertex_source_name.as_ref() == destination_identity {
-                                return self.connect_vertices(resulting_vertices);
+                                return self.connect_vertices(string_pool, resulting_vertices);
                             }
                         }
 
@@ -386,9 +368,9 @@ impl ProcessingAlgorithm {
                         if !visited_vertices.iter().any(|f| {
                             let borrowed_vertex = f.borrow();
                             let name_left = upgrade_conditionally!(borrowed_vertex.name);
-                            let name_righ =
+                            let name_right =
                                 upgrade_conditionally!(borrowed_vertex_destination.name);
-                            name_left.eq(&name_righ)
+                            name_left.eq(&name_right)
                         }) {
                             let random_value = random_index!(&borrowed_vertex_destination);
                             let random_edge = &borrowed_vertex_destination.edges[random_value];
@@ -401,7 +383,7 @@ impl ProcessingAlgorithm {
                             let borrowed_vertex_name =
                                 upgrade_conditionally!(borrowed_vertex_destination.name);
                             if borrowed_vertex_name.as_ref() == destination_identity {
-                                return self.connect_vertices(resulting_vertices);
+                                return self.connect_vertices(string_pool, resulting_vertices);
                             }
                         }
                     }
@@ -414,6 +396,7 @@ impl ProcessingAlgorithm {
 
     fn connect_vertices(
         &self,
+        string_pool: &mut StringPool,
         resulting_vertices: Vec<(u32, MutableVertexReference)>,
     ) -> Vec<MutableVertexReference> {
         let mut new_vertexes = vec![];
@@ -431,11 +414,8 @@ impl ProcessingAlgorithm {
             let mut borrowed_next_vertex = next_vertex.1.borrow_mut();
             let borrowed_vertex_name = upgrade_conditionally!(borrowed_vertex.name);
             let borrowed_next_vertex_name = upgrade_conditionally!(borrowed_next_vertex.name);
-
-            let mut new_edge = Edge::new(
-                format!("{}-{}", borrowed_vertex_name, borrowed_next_vertex_name).to_owned(),
-                current_vertex.0,
-            );
+            let name = format!("{}-{}", borrowed_vertex_name, borrowed_next_vertex_name);
+            let mut new_edge = Edge::new(string_pool.intern(name), current_vertex.0);
             new_edge.source = Some(current_vertex.1.clone());
             new_edge.destination = Some(next_vertex.1.clone());
             let new_edge_rc = Rc::new(RefCell::new(new_edge));
@@ -513,9 +493,10 @@ mod tests {
 
     #[test]
     pub fn generate_random_paths_should_correctly_return_result() {
-        let graph = create_graph();
+        let mut graph = create_graph();
         let processing_algorithm = ProcessingAlgorithm::default();
         let random_routes = processing_algorithm.generate_random_routes(
+            &mut graph.string_pool,
             &graph
                 .vertex_references
                 .iter()
@@ -531,9 +512,10 @@ mod tests {
 
     #[test]
     pub fn get_pairs_of_random_routes() {
-        let graph = create_graph();
+        let mut graph = create_graph();
         let processing_algorithm = ProcessingAlgorithm::default();
         let random_routes = processing_algorithm.generate_random_routes(
+            &mut graph.string_pool,
             &graph
                 .vertex_references
                 .iter()
@@ -553,6 +535,7 @@ mod tests {
         let graph = &mut create_graph();
         let processing_algorithm = ProcessingAlgorithm::default();
         let random_routes = processing_algorithm.generate_random_routes(
+            &mut graph.string_pool,
             &graph
                 .vertex_references
                 .iter()
@@ -563,9 +546,8 @@ mod tests {
             1000,
         );
 
-    
         let result = processing_algorithm.generate_pairs(&random_routes);
-        let crossed = processing_algorithm.crossover(result);
+        let crossed = processing_algorithm.crossover(&mut graph.string_pool, &result);
         assert!(crossed.len() > 0);
     }
 
@@ -575,6 +557,7 @@ mod tests {
         let processing_algorithm = ProcessingAlgorithm::default();
         let mut time = Instant::now();
         let random_routes = processing_algorithm.generate_random_routes(
+            &mut graph.string_pool,
             &graph
                 .vertex_references
                 .iter()
@@ -585,14 +568,13 @@ mod tests {
             100,
         );
 
-
         let elapsed_generation = time.elapsed().as_micros();
         time = Instant::now();
         random_routes.iter().for_each(|r| {
             let fit_value = processing_algorithm.get_fit_value(r);
             assert!(fit_value > 0);
         });
-        
+
         let elapsed_fit = time.elapsed().as_micros();
         println!(
             "Generated in {:?} μs, fitted in {:?} μs",
@@ -602,10 +584,11 @@ mod tests {
 
     #[test]
     pub fn crossover_should_work_as_expected() {
-        let graph = create_complex_graph();
+        let mut graph = create_complex_graph();
 
         let processing_algorithm = ProcessingAlgorithm::default();
         let random_routes = processing_algorithm.generate_random_routes(
+            &mut graph.string_pool,
             &graph
                 .vertex_references
                 .iter()
@@ -617,31 +600,61 @@ mod tests {
         );
 
         let pairs = processing_algorithm.generate_pairs(&random_routes);
-        let result = processing_algorithm.crossover(pairs);
-        
+        let result = processing_algorithm.crossover(&mut graph.string_pool, &pairs);
+
         assert!(result.len() > 0);
     }
 
     #[test]
     pub fn should_find_optimal_way_for_complex_graph() {
-        let graph = create_complex_graph();
+        let mut graph = create_complex_graph();
+
         let processing_algorithm = ProcessingAlgorithm::default();
-        let starting_point = graph.vertex_references.iter().find(|p| {
-            let borrowed = p.borrow();
-            let borrowed_name = upgrade_conditionally!(borrowed.name);
-            borrowed_name.as_ref() == "Березовский"
-        });
+        let mut random_routes = processing_algorithm.generate_random_routes(
+            &mut graph.string_pool,
+            &graph
+                .vertex_references
+                .iter()
+                .map(|f| Rc::downgrade(&f))
+                .collect(),
+            &"Асбест".to_owned(),
+            &"Дегтярск".to_owned(),
+            100_000,
+        );
 
-        let mut generation_results = vec![];
+        let mut crossed = vec![];
+        crossed.append(&mut random_routes);
 
-        for _ in 0..100_000 {
-            let results = processing_algorithm
-                .generate_random_route(&Rc::downgrade(starting_point.unwrap()), "Дегтярск");
-            if results.len() > 0 {
-                generation_results.push(results);
+        for _i in 0..100 {
+            let pairs = processing_algorithm.generate_pairs(&crossed);
+            let _crossed = processing_algorithm.crossover(&mut graph.string_pool, &pairs);
+
+            let mut fit_values = vec![];
+            let mut max_fit_value = u32::MIN;
+            for crossed_pair in _crossed {
+                let fit = processing_algorithm.get_fit_value(&crossed_pair);
+                fit_values.push((fit, crossed_pair));
+                if fit > max_fit_value {
+                    max_fit_value = fit;
+                }
+            }
+
+            let rank_value = 50f64 * 0.01f64 * max_fit_value as f64;
+            let mut filter_values: Vec<MutableVertexReferences> = fit_values
+                .iter()
+                .filter(|f| f.0 as f64 <= rank_value)
+                .map(|(f, v)| v.clone())
+                .collect();
+
+            if filter_values.len() > 1 {
+                crossed.clear();
+                crossed.append(&mut filter_values);
+            } else {
+                assert!(crossed.len() > 0);
+                break;
             }
         }
 
-        assert!(generation_results.len() > 0)
+        assert!(crossed.len() > 0);
     }
 }
