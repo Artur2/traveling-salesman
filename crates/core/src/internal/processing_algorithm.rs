@@ -36,9 +36,11 @@ impl ProcessingAlgorithm {
         }
 
         let mut random_paths = vec![];
-        while random_paths.len() < amount_of_generations as usize {
+        let mut passed_cycles = amount_of_generations;
+        while passed_cycles > 0 {
             let routes =
                 self.generate_random_route(string_pool, starting_point.unwrap(), destination);
+            passed_cycles -= 1;
             if routes.is_empty() {
                 // Пропускаем роуты, которые не дошли до конечной точки
                 continue;

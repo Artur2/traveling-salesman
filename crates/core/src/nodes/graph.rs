@@ -76,7 +76,7 @@ impl Graph {
         });
 
         if found_source_vector.is_none() || found_destination_vector.is_none() {
-            panic!("Create vertex first");
+            panic!("Create vertex first, cannot find source {source_vector_name} or destination {destination_vector_name}");
         }
 
         let source_vector_reference = found_source_vector.unwrap();
@@ -102,8 +102,8 @@ impl Graph {
     pub(crate) fn has_vertex(&self, name: &str) -> bool {
         let found = self.vertex_references.iter().find(|v| {
             let borrowed_v = v.borrow();
-            let name = upgrade_conditionally!(borrowed_v.name);
-            name.as_ref() == name.as_ref()
+            let borrowed_name = upgrade_conditionally!(borrowed_v.name);
+            *borrowed_name == *name
         });
 
         found.is_some()

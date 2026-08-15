@@ -98,6 +98,10 @@ impl PathResolver {
             }
         }
 
+        if crossed.is_empty() {
+            return vec![];
+        }
+
         let first_route = crossed.first().unwrap();
         let mut route = vec![];
         first_route.iter().for_each(|r| {
