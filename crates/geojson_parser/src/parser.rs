@@ -1,4 +1,4 @@
-use crate::types::{Export, Feature, ParsingEntry, ParsingResult};
+use crate::types::{Export, Feature, ParsingEntry, ParsingResult, Route};
 use serde_json::Value;
 use std::f64::consts::PI;
 use std::fs::File;
@@ -28,7 +28,7 @@ impl Parser {
 
         let parsed: Export = serde_json::from_str(&string).map_err(|e| e.to_string())?;
 
-        let routes = parsed
+        let mut routes = parsed
             .features
             .iter()
             .filter(|f| f.properties.from.is_some() && f.properties.to.is_some())
@@ -39,6 +39,24 @@ impl Parser {
                 ParsingEntry { from, to, kms }
             })
             .collect::<Vec<ParsingEntry>>();
+
+        parsed
+            .features
+            .iter()
+            .filter(|f| f.properties.relations.is_some())
+            .for_each(|f| {
+                f.properties.relations.iter().for_each(|rel| {
+                    rel.iter().for_each(|rel| {
+                        if let (Some(from), Some(to)) = (&rel.reltags.from, &rel.reltags.to) {
+                            routes.push(ParsingEntry {
+                                from: from.clone(),
+                                to: to.clone(),
+                                kms: 0f64, // TODO: Add correct weight with rework of parsing geojson(need add points to lines with weights) bus stops will be vertices, 
+                            })
+                        }
+                    })
+                })
+            });
 
         Ok(routes)
     }
