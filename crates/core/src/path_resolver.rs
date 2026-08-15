@@ -21,6 +21,10 @@ impl PathResolver {
         self.graph.add_vertex(vertex_name);
     }
 
+    pub fn has_vertex(&self, vertex_name: &str) -> bool {
+        self.graph.has_vertex(vertex_name)
+    }
+
     pub fn connect_vertices(
         &mut self,
         source_vector_name: String,
@@ -29,6 +33,13 @@ impl PathResolver {
     ) {
         self.graph
             .connect_vertices(source_vector_name, destination_vector_name, weight);
+    }
+
+    pub fn has_connection(&self, source_vector_name: &String, destination_vector_name: &String) -> bool {
+        self.graph.has_connection_between_vertices(
+            &source_vector_name,
+            &destination_vector_name,
+        )
     }
 
     pub fn resolve_optimal_path(

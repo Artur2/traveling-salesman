@@ -3,6 +3,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
+#[must_use = "Main entry point for parsing geojson format"]
 pub struct Parser;
 
 impl Parser {
