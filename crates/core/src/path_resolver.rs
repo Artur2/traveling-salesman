@@ -71,7 +71,8 @@ impl PathResolver {
                 }
             }
 
-            let rank_value = percent_of_fit as f64 * 0.01f64 * max_fit_value as f64;
+            // max_fit_value as f64 * (50f64 /* Percentage */ * 0.01f64 /* Convert to percents */);
+            let rank_value = max_fit_value as f64 * (0.01f64 * percent_of_fit as f64);
             let mut filter_values: Vec<MutableVertexReferences> = fit_values
                 .iter()
                 .filter(|f| f.0 as f64 >= rank_value)

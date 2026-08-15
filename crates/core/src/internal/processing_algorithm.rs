@@ -259,7 +259,6 @@ impl ProcessingAlgorithm {
         right: &'a MutableVertexReferences,
         left: &'a MutableVertexReferences,
     ) -> (&'a MutableVertexReference, &'a MutableVertexReference, u32) {
-        // Searching index of edges in left, right slice to remove
         let mut weight = 0;
         let right_last_vertex = right.last().unwrap();
         let left_first_vertex = left.first().unwrap();
@@ -617,9 +616,9 @@ mod tests {
                 .iter()
                 .map(|f| Rc::downgrade(&f))
                 .collect(),
-            &"Асбест".to_owned(),
-            &"Дегтярск".to_owned(),
-            100_000,
+            &"Сысерть".to_owned(),
+            &"Заречный".to_owned(),
+            1000,
         );
 
         let mut crossed = vec![];
@@ -639,10 +638,10 @@ mod tests {
                 }
             }
 
-            let rank_value = 50f64 * 0.01f64 * max_fit_value as f64;
+            let rank_value = max_fit_value as f64 * (50f64 /* Percentage */ * 0.01f64 /* Convert to percents */);
             let mut filter_values: Vec<MutableVertexReferences> = fit_values
                 .iter()
-                .filter(|f| f.0 as f64 <= rank_value)
+                .filter(|f| (f.0 as f64) <= rank_value)
                 .map(|(f, v)| v.clone())
                 .collect();
 

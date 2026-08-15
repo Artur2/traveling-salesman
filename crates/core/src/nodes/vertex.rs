@@ -1,7 +1,6 @@
 use crate::nodes::edge::Edge;
 use crate::upgrade_conditionally;
 use std::cell::RefCell;
-use std::fmt::{Display, Formatter};
 use std::rc::{Rc, Weak};
 use crate::internal::string_pool::StringPool;
 
@@ -45,7 +44,7 @@ impl Vertex {
         destination_vertex: &Rc<RefCell<Vertex>>,
         weight: u32,
     ) {
-        let mut edge_name: String = Default::default();
+        let edge_name: String;
         let mut source_vertex_name: String = Default::default();
         let mut destination_vertex_name: String = Default::default();
         {

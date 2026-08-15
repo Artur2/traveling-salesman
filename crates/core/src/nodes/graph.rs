@@ -138,8 +138,8 @@ impl Graph {
             let borrowed_source_name = upgrade_conditionally!(borrowed_source.name);
             let borrowed_destination_name = upgrade_conditionally!(borrowed_destination.name);
 
-            return (borrowed_source_name.as_ref() == source.as_str() && borrowed_destination_name.as_ref() == destination.as_str())
-                || (borrowed_source_name.as_ref() == destination.as_str() && borrowed_destination_name.as_ref() == source.as_str());
+            return (*borrowed_source_name == *source && *borrowed_destination_name == *destination)
+                || (*borrowed_source_name == *destination && *borrowed_destination_name == *source);
         })
     }
 
