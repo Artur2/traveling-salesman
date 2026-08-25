@@ -1,4 +1,5 @@
 use clap::Parser;
+use geojson_parser::shared_types::ParsingResultError;
 use traveling_salesman_genetic::path_resolver::PathResolver;
 
 type GeoJSONParser = geojson_parser::parser::Parser;
@@ -30,7 +31,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let parser = GeoJSONParser::new();
     let mut path_resolver = PathResolver::new("Test".to_owned());
 
-    let parse_result = parser.parse(&args.geo_json_path, &args.buses_json_path)?;
+    let parse_result = parser
+        .parse(&args.geo_json_path, &args.buses_json_path)
+        .map_err(|e| match e {
+            ParsingResultError::Unknown => "unknown".to_owned(),
+            ParsingResultError::FileNotFound { path } => {
+                format!("file not found: {}", path)
+            }
+            ParsingResultError::ReadError { message } => {
+                format!("read error: {}", message)
+            }
+            ParsingResultError::DeserializationError => "deserialization error".to_owned(),
+            ParsingResultError::NoBusStop => "no bus stop".to_owned(),
+        })?;
 
     parse_result.iter().for_each(|result| {
         if !path_resolver.has_vertex(result.to.as_str()) {

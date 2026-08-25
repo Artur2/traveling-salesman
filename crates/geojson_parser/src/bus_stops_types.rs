@@ -17,7 +17,7 @@ pub struct BusStopEntry {
     pub geometry: Geometry,
 }
 
-#[derive(Default, Clone)]
+#[derive(Default)]
 pub struct BusStop {
     pub name: String,
     pub latitude: f64,

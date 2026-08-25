@@ -1,5 +1,6 @@
 use crate::bus_stops_types::{BusStop, BusStopsExport};
-use crate::route_types::{Export as RoutesExport, Feature, ParsingEntry, ParsingResult};
+use crate::route_types::{Export as RoutesExport, Feature, ParsingEntry};
+use crate::shared_types::{ParsingResultError, ParsingResult};
 use rayon::prelude::*;
 use serde_json::Value;
 use std::f64::consts::PI;
@@ -24,26 +25,37 @@ impl Parser {
         let path = Path::new(routes_file_path);
         let bus_path = Path::new(buses_file_path);
         if !path.exists() || !bus_path.exists() {
-            return Err("Path does not exist".to_string());
+            return Err(ParsingResultError::FileNotFound {
+                path: path.to_str().unwrap().to_string(),
+            });
         }
 
-        let mut content = File::open(path).map_err(|e| e.to_string())?;
-        let mut buses_content = File::open(bus_path).map_err(|e| e.to_string())?;
+        let mut content = File::open(path).map_err(|e| ParsingResultError::ReadError {
+            message: e.to_string(),
+        })?;
+        let mut buses_content =
+            File::open(bus_path).map_err(|e| ParsingResultError::ReadError {
+                message: e.to_string(),
+            })?;
         let mut string = String::new();
         let mut buses_string = String::new();
 
         content
             .read_to_string(&mut string)
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| ParsingResultError::ReadError {
+                message: e.to_string(),
+            })?;
 
         buses_content
             .read_to_string(&mut buses_string)
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| ParsingResultError::ReadError {
+                message: e.to_string(),
+            })?;
 
         let parsed_routes: RoutesExport =
-            serde_json::from_str(&string).map_err(|e| e.to_string())?;
-        let parsed_bus_stops: BusStopsExport =
-            serde_json::from_str(&buses_string).map_err(|e| e.to_string())?;
+            serde_json::from_str(&string).map_err(|e| ParsingResultError::DeserializationError)?;
+        let parsed_bus_stops: BusStopsExport = serde_json::from_str(&buses_string)
+            .map_err(|e| ParsingResultError::DeserializationError)?;
 
         let bus_stops: Vec<BusStop> = parsed_bus_stops
             .features
@@ -173,7 +185,7 @@ impl Parser {
         lat: f64,
         lon: f64,
         bus_stops: &'a Vec<BusStop>,
-    ) -> Result<Option<&'a BusStop>, String> {
+    ) -> ParsingResult<Option<&'a BusStop>> {
         let near_bus: Mutex<Option<&BusStop>> = Mutex::new(None);
         let minimum_distance = Mutex::new(i32::MAX as f64);
 
@@ -190,12 +202,12 @@ impl Parser {
             }
         });
 
-        let returning_value = near_bus.lock().map_err(|e| format!("{}", e))?;
+        let returning_value = near_bus.lock().map_err(|_| ParsingResultError::NoBusStop)?;
         if returning_value.is_none() {
             return Ok(None);
         }
 
-        let unwrapped_result = returning_value.ok_or("No BusStop found".to_string())?;
+        let unwrapped_result = returning_value.ok_or(ParsingResultError::NoBusStop)?;
         Ok(Some(unwrapped_result))
     }
 
@@ -240,7 +252,7 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore = "Only for local run"]
+    // #[ignore = "Only for local run"]
     pub fn should_parse_file() -> ParsingResult<()> {
         let file = Path::new(env!("OUT_DIR")).join("export.geojson");
 

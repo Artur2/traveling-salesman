@@ -37,5 +37,3 @@ pub struct ParsingEntry {
     pub to: String,
     pub kms: f64
 }
-
-pub type ParsingResult<T> = Result<T, String>;
