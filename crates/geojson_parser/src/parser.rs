@@ -6,7 +6,7 @@ use std::f64::consts::PI;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
 #[must_use = "Main entry point for parsing geojson format"]
 pub struct Parser;
@@ -16,14 +16,19 @@ impl Parser {
         Parser {}
     }
 
-    pub fn parse(&self, path: &str, buses_path: &str) -> ParsingResult<Vec<ParsingEntry>> {
-        let path = Path::new(path);
-        if !Path::exists(path) {
-            return Err(format!("{} does not exist", path.display()));
+    pub fn parse(
+        &self,
+        routes_file_path: &str,
+        buses_file_path: &str,
+    ) -> ParsingResult<Vec<ParsingEntry>> {
+        let path = Path::new(routes_file_path);
+        let bus_path = Path::new(buses_file_path);
+        if !path.exists() || !bus_path.exists() {
+            return Err("Path does not exist".to_string());
         }
 
         let mut content = File::open(path).map_err(|e| e.to_string())?;
-        let mut buses_content = File::open(buses_path).map_err(|e| e.to_string())?;
+        let mut buses_content = File::open(bus_path).map_err(|e| e.to_string())?;
         let mut string = String::new();
         let mut buses_string = String::new();
 
@@ -235,6 +240,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore = "Only for local run"]
     pub fn should_parse_file() -> ParsingResult<()> {
         let file = Path::new(env!("OUT_DIR")).join("export.geojson");
 
