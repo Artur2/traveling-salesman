@@ -1,9 +1,12 @@
-use crate::types::{Export, Feature, ParsingEntry, ParsingResult, Route};
+use crate::bus_stops_types::{BusStop, BusStopsExport};
+use crate::route_types::{Export as RoutesExport, Feature, ParsingEntry, ParsingResult};
+use rayon::prelude::*;
 use serde_json::Value;
 use std::f64::consts::PI;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 
 #[must_use = "Main entry point for parsing geojson format"]
 pub struct Parser;
@@ -13,55 +16,56 @@ impl Parser {
         Parser {}
     }
 
-    pub fn parse(&self, path: &str) -> ParsingResult<Vec<ParsingEntry>> {
+    pub fn parse(&self, path: &str, buses_path: &str) -> ParsingResult<Vec<ParsingEntry>> {
         let path = Path::new(path);
         if !Path::exists(path) {
             return Err(format!("{} does not exist", path.display()));
         }
 
         let mut content = File::open(path).map_err(|e| e.to_string())?;
+        let mut buses_content = File::open(buses_path).map_err(|e| e.to_string())?;
         let mut string = String::new();
+        let mut buses_string = String::new();
 
         content
             .read_to_string(&mut string)
             .map_err(|e| e.to_string())?;
 
-        let parsed: Export = serde_json::from_str(&string).map_err(|e| e.to_string())?;
+        buses_content
+            .read_to_string(&mut buses_string)
+            .map_err(|e| e.to_string())?;
 
-        let mut routes = parsed
+        let parsed_routes: RoutesExport =
+            serde_json::from_str(&string).map_err(|e| e.to_string())?;
+        let parsed_bus_stops: BusStopsExport =
+            serde_json::from_str(&buses_string).map_err(|e| e.to_string())?;
+
+        let bus_stops: Vec<BusStop> = parsed_bus_stops
+            .features
+            .iter()
+            .map(|f| BusStop {
+                name: f.properties.name.to_string(),
+                latitude: f.geometry.coordinates[1].as_f64().unwrap(),
+                longitude: f.geometry.coordinates[0].as_f64().unwrap(),
+            })
+            .collect();
+
+        let routes = parsed_routes
             .features
             .iter()
             .filter(|f| f.properties.from.is_some() && f.properties.to.is_some())
             .map(|f| {
                 let from = f.properties.from.as_ref().unwrap().clone();
                 let to = f.properties.to.as_ref().unwrap().clone();
-                let kms = self.calculate_kms(f);
+                let kms = self.calculate_kms(f, &bus_stops);
                 ParsingEntry { from, to, kms }
             })
             .collect::<Vec<ParsingEntry>>();
 
-        parsed
-            .features
-            .iter()
-            .filter(|f| f.properties.relations.is_some())
-            .for_each(|f| {
-                f.properties.relations.iter().for_each(|rel| {
-                    rel.iter().for_each(|rel| {
-                        if let (Some(from), Some(to)) = (&rel.reltags.from, &rel.reltags.to) {
-                            routes.push(ParsingEntry {
-                                from: from.clone(),
-                                to: to.clone(),
-                                kms: 0f64, // TODO: Add correct weight with rework of parsing geojson(need add points to lines with weights) bus stops will be vertices, 
-                            })
-                        }
-                    })
-                })
-            });
-
         Ok(routes)
     }
 
-    fn calculate_kms(&self, feature: &Feature) -> f64 {
+    fn calculate_kms(&self, feature: &Feature, bus_stops: &Vec<BusStop>) -> f64 {
         let definition = feature.geometry.type_definition.clone();
         match definition.as_str() {
             "LineString" => {
@@ -78,6 +82,8 @@ impl Parser {
 
                             if let (Some(lat), Some(lon)) = (latitude.as_f64(), longitude.as_f64())
                             {
+                                let near_bus = self.get_near_bus_stop(lat, lon, bus_stops);
+
                                 if current_lat.is_none() && current_lon.is_none() {
                                     current_lat = Some(lat);
                                     current_lon = Some(lon);
@@ -121,6 +127,8 @@ impl Parser {
                                     if let (Some(lat), Some(lon)) =
                                         (latitude.as_f64(), longitude.as_f64())
                                     {
+                                        let near_bus = self.get_near_bus_stop(lat, lon, bus_stops);
+
                                         if current_lat.is_none() && current_lon.is_none() {
                                             current_lat = Some(lat);
                                             current_lon = Some(lon);
@@ -155,6 +163,37 @@ impl Parser {
         }
     }
 
+    fn get_near_bus_stop<'a>(
+        &self,
+        lat: f64,
+        lon: f64,
+        bus_stops: &'a Vec<BusStop>,
+    ) -> Result<Option<&'a BusStop>, String> {
+        let near_bus: Mutex<Option<&BusStop>> = Mutex::new(None);
+        let minimum_distance = Mutex::new(i32::MAX as f64);
+
+        bus_stops.par_iter().for_each(|s| {
+            let distance = self.calculate_distance_in_km(s.latitude, s.longitude, lat, lon);
+
+            if distance <= 0.100 {
+                let mut current_distance = minimum_distance.lock().unwrap();
+                if distance < *current_distance {
+                    *current_distance = distance;
+                    let mut current_bus = near_bus.lock().unwrap();
+                    *current_bus = Some(s);
+                }
+            }
+        });
+
+        let returning_value = near_bus.lock().map_err(|e| format!("{}", e))?;
+        if returning_value.is_none() {
+            return Ok(None);
+        }
+
+        let unwrapped_result = returning_value.ok_or("No BusStop found".to_string())?;
+        Ok(Some(unwrapped_result))
+    }
+
     fn calculate_distance_in_km(
         &self,
         current_lat: f64,
@@ -162,7 +201,7 @@ impl Parser {
         next_lat: f64,
         next_lon: f64,
     ) -> f64 {
-        const earth_radius_km: f64 = 6371.0;
+        const EARTH_RADIUS_KM: f64 = 6371.0;
         let dlat = self.to_radians(next_lat - current_lat);
         let dlon = self.to_radians(next_lon - current_lon);
 
@@ -183,9 +222,10 @@ impl Parser {
 
         let c = 2f64 * f64::atan2(f64::sqrt(a), f64::sqrt(inside_sqrt));
 
-        earth_radius_km * c
+        EARTH_RADIUS_KM * c
     }
 
+    #[inline(always)]
     fn to_radians(&self, angle: f64) -> f64 {
         PI / 180.0 * angle
     }
@@ -196,10 +236,12 @@ mod tests {
 
     #[test]
     pub fn should_parse_file() -> ParsingResult<()> {
-        let file = "export.geojson";
+        let file = Path::new(env!("OUT_DIR")).join("export.geojson");
+
+        let buses_file = Path::new(env!("OUT_DIR")).join("bus_stops_named.geojson");
         let parser = Parser;
 
-        let result = parser.parse(file)?;
+        let result = parser.parse(file.to_str().unwrap(), buses_file.to_str().unwrap())?;
 
         assert!(result.len() > 0);
         Ok(())

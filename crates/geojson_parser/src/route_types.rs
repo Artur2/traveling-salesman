@@ -1,5 +1,6 @@
 use serde::Deserialize;
 use serde_json::Value;
+use crate::shared_types::Geometry;
 
 #[derive(Deserialize, Clone)]
 pub struct Route {
@@ -24,13 +25,6 @@ pub struct RelationRoute {
 pub struct Feature {
     pub properties: Route,
     pub geometry: Geometry
-}
-
-#[derive(Deserialize)]
-pub struct Geometry {
-    #[serde(rename = "type")]
-    pub type_definition: String,
-    pub coordinates: Value,
 }
 
 #[derive(Deserialize)]

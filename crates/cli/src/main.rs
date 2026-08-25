@@ -8,6 +8,8 @@ pub struct Args {
     #[arg(short, long)]
     geo_json_path: String,
     #[arg(short, long)]
+    buses_json_path: String,
+    #[arg(short, long)]
     source: String,
     #[arg(short, long)]
     destination: String,
@@ -28,7 +30,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let parser = GeoJSONParser::new();
     let mut path_resolver = PathResolver::new("Test".to_owned());
 
-    let parse_result = parser.parse(args.geo_json_path.as_str())?;
+    let parse_result = parser.parse(&args.geo_json_path, &args.buses_json_path)?;
 
     parse_result.iter().for_each(|result| {
         if !path_resolver.has_vertex(result.to.as_str()) {

@@ -35,11 +35,13 @@ impl PathResolver {
             .connect_vertices(source_vector_name, destination_vector_name, weight);
     }
 
-    pub fn has_connection(&self, source_vector_name: &String, destination_vector_name: &String) -> bool {
-        self.graph.has_connection_between_vertices(
-            &source_vector_name,
-            &destination_vector_name,
-        )
+    pub fn has_connection(
+        &self,
+        source_vector_name: &String,
+        destination_vector_name: &String,
+    ) -> bool {
+        self.graph
+            .has_connection_between_vertices(&source_vector_name, &destination_vector_name)
     }
 
     pub fn resolve_optimal_path(
@@ -87,7 +89,7 @@ impl PathResolver {
             let mut filter_values: Vec<MutableVertexReferences> = fit_values
                 .iter()
                 .filter(|f| f.0 as f64 >= rank_value)
-                .map(|(f, v)| v.clone())
+                .map(|(_, v)| v.clone())
                 .collect();
 
             if filter_values.len() > 1 {
