@@ -59,10 +59,15 @@ impl Parser {
         let bus_stops: Vec<BusStop> = parsed_bus_stops
             .features
             .iter()
-            .map(|f| BusStop {
-                name: f.properties.name.to_string(),
-                latitude: f.geometry.coordinates[1].as_f64().unwrap(),
-                longitude: f.geometry.coordinates[0].as_f64().unwrap(),
+            .map(|f| {
+                let lat = f.geometry.coordinates[1].as_f64().unwrap();
+                let long = f.geometry.coordinates[0].as_f64().unwrap();
+
+                BusStop {
+                    name: f.properties.name.to_string(),
+                    latitude: lat,
+                    longitude: long,
+                }
             })
             .collect();
 
@@ -70,23 +75,24 @@ impl Parser {
             .features
             .iter()
             .filter(|f| f.properties.from.is_some() && f.properties.to.is_some())
-            .map(|f| {
-                let from = f.properties.from.as_ref().unwrap().clone();
-                let to = f.properties.to.as_ref().unwrap().clone();
-                let kms = self.calculate_kms(f, &bus_stops);
-                ParsingEntry { from, to, kms }
-            })
-            .collect::<Vec<ParsingEntry>>();
+            .fold(vec![], |mut acc, x| {
+                acc.extend(self.harvest_entries_through_route(x, &bus_stops));
+
+                acc
+            });
 
         Ok(routes)
     }
 
-    fn calculate_kms(&self, feature: &Feature, bus_stops: &Vec<BusStop>) -> f64 {
+    fn harvest_entries_through_route(&self, feature: &Feature, bus_stops: &Vec<BusStop>) -> Vec<ParsingEntry> {
         let definition = feature.geometry.type_definition.clone();
+        let mut results = vec![];
         match definition.as_str() {
             "LineString" => {
                 let mut current_lat: Option<f64> = None;
                 let mut current_lon: Option<f64> = None;
+                let mut current_bus: Option<&BusStop> = None;
+                let mut previous_point_kms = 0.0;
 
                 let mut distance = 0f64;
 
@@ -95,11 +101,10 @@ impl Parser {
                         Value::Array(pairs) => {
                             let longitude = &pairs[0];
                             let latitude = &pairs[1];
+                            let mut kms = 0.0;
 
                             if let (Some(lat), Some(lon)) = (latitude.as_f64(), longitude.as_f64())
                             {
-                                let near_bus = self.get_near_bus_stop(lat, lon, bus_stops);
-
                                 if current_lat.is_none() && current_lon.is_none() {
                                     current_lat = Some(lat);
                                     current_lon = Some(lon);
@@ -107,7 +112,7 @@ impl Parser {
                                     let next_lat = lat;
                                     let next_lon = lon;
 
-                                    let kms = self.calculate_distance_in_km(
+                                    kms = self.calculate_distance_in_km(
                                         current_lat.unwrap(),
                                         current_lon.unwrap(),
                                         next_lat,
@@ -118,17 +123,44 @@ impl Parser {
                                     current_lat = Some(next_lat);
                                     current_lon = Some(next_lon);
                                 }
+
+                                let near_bus_index =
+                                    self.get_near_bus_stop_index(lat, lon, bus_stops);
+                                if let Some(unwrapped_bus_index) = near_bus_index.unwrap() {
+                                    if current_bus.is_none() {
+                                        current_bus = Some(&bus_stops[unwrapped_bus_index]);
+                                        previous_point_kms = distance;
+                                    } else {
+                                        let from_bus = current_bus.unwrap();
+                                        let to_bus = &bus_stops[unwrapped_bus_index];
+
+                                        if from_bus.name == to_bus.name {
+                                            return;
+                                        }
+
+                                        let distance_between_bus_stops =
+                                            distance - previous_point_kms;
+                                        previous_point_kms = distance;
+                                        current_bus = Some(to_bus);
+
+                                        results.push(ParsingEntry {
+                                            from: from_bus.name.to_string(),
+                                            to: to_bus.name.to_string(),
+                                            kms: distance_between_bus_stops,
+                                        });
+                                    }
+                                }
                             }
                         }
                         _ => panic!(),
                     });
                 }
-
-                distance
             }
             "MultiLineString" => {
                 let mut current_lat: Option<f64> = None;
                 let mut current_lon: Option<f64> = None;
+                let mut current_bus: Option<&BusStop> = None;
+                let mut previous_point_kms = 0.0;
 
                 let mut distance = 0f64;
 
@@ -143,7 +175,7 @@ impl Parser {
                                     if let (Some(lat), Some(lon)) =
                                         (latitude.as_f64(), longitude.as_f64())
                                     {
-                                        let near_bus = self.get_near_bus_stop(lat, lon, bus_stops);
+
 
                                         if current_lat.is_none() && current_lon.is_none() {
                                             current_lat = Some(lat);
@@ -163,6 +195,34 @@ impl Parser {
                                             current_lat = Some(next_lat);
                                             current_lon = Some(next_lon);
                                         }
+
+                                        let near_bus_index =
+                                            self.get_near_bus_stop_index(lat, lon, bus_stops);
+
+                                        if let Some(unwrapped_bus_index) = near_bus_index.unwrap() {
+                                            if current_bus.is_none() {
+                                                current_bus = Some(&bus_stops[unwrapped_bus_index]);
+                                                previous_point_kms = distance;
+                                            } else {
+                                                let from_bus = current_bus.unwrap();
+                                                let to_bus = &bus_stops[unwrapped_bus_index];
+
+                                                if from_bus.name == to_bus.name {
+                                                    return;
+                                                }
+
+                                                let distance_between_bus_stops =
+                                                    distance - previous_point_kms;
+                                                previous_point_kms = distance;
+                                                current_bus = Some(to_bus);
+
+                                                results.push(ParsingEntry {
+                                                    from: from_bus.name.to_string(),
+                                                    to: to_bus.name.to_string(),
+                                                    kms: distance_between_bus_stops,
+                                                });
+                                            }
+                                        }
                                     }
                                 }
                                 Value::Null => {}
@@ -172,19 +232,19 @@ impl Parser {
                         _ => panic!(),
                     })
                 }
-
-                distance
             }
-            _ => 0f64,
+            _ => (),
         }
+
+        results
     }
 
-    fn get_near_bus_stop<'a>(
+    fn get_near_bus_stop_index(
         &self,
         lat: f64,
         lon: f64,
-        bus_stops: &'a Vec<BusStop>,
-    ) -> ParsingResult<Option<&'a BusStop>> {
+        bus_stops: &Vec<BusStop>,
+    ) -> ParsingResult<Option<usize>> {
         let found_near_bus = bus_stops
             .par_iter()
             .enumerate()
@@ -204,8 +264,7 @@ impl Parser {
             return Ok(None);
         }
 
-        let bus_by_index = &bus_stops[found_near_bus.0];
-        Ok(Some(bus_by_index))
+        Ok(Some(found_near_bus.0))
     }
 
     fn calculate_distance_in_km(
@@ -219,7 +278,6 @@ impl Parser {
         let dlat = self.to_radians(next_lat - current_lat);
         let dlon = self.to_radians(next_lon - current_lon);
 
-        // TODO: Рассчитывать изначально, что бы не в параллель рассчитывать
         let rlat = self.to_radians(current_lat);
         let rlat2 = self.to_radians(next_lat);
 
@@ -252,9 +310,9 @@ mod tests {
     #[test]
     #[ignore = "Only for local run"]
     pub fn should_parse_file() -> ParsingResult<()> {
-        let file = Path::new(env!("OUT_DIR")).join("export.geojson");
-
-        let buses_file = Path::new(env!("OUT_DIR")).join("bus_stops_named.geojson");
+        let out_dir = env!("OUT_DIR");
+        let file = Path::join(out_dir.as_ref(), "export.geojson");
+        let buses_file = Path::join(out_dir.as_ref(), "bus_stops_named.geojson");
         let parser = Parser;
 
         let result = parser.parse(file.to_str().unwrap(), buses_file.to_str().unwrap())?;
