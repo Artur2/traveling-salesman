@@ -1,13 +1,12 @@
 use crate::bus_stops_types::{BusStop, BusStopsExport};
 use crate::route_types::{Export as RoutesExport, Feature, ParsingEntry};
-use crate::shared_types::{ParsingResultError, ParsingResult};
+use crate::shared_types::{ParsingResult, ParsingResultError};
 use rayon::prelude::*;
 use serde_json::Value;
 use std::f64::consts::PI;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
-use std::sync::Mutex;
 
 #[must_use = "Main entry point for parsing geojson format"]
 pub struct Parser;
@@ -186,30 +185,27 @@ impl Parser {
         lon: f64,
         bus_stops: &'a Vec<BusStop>,
     ) -> ParsingResult<Option<&'a BusStop>> {
-        let near_bus: Mutex<Option<&BusStop>> = Mutex::new(None);
-        let minimum_distance = Mutex::new(i32::MAX as f64);
-        // Подумать не использовать мьютекс
+        let found_near_bus = bus_stops
+            .par_iter()
+            .enumerate()
+            .map(|(i, bus_stop)| {
+                let distance =
+                    self.calculate_distance_in_km(bus_stop.latitude, bus_stop.longitude, lat, lon);
+                (i, distance)
+            })
+            .reduce(
+                || (0, f64::MAX),
+                |a, b| {
+                    if a.1 < b.1 { a } else { b }
+                },
+            );
 
-        bus_stops.par_iter().for_each(|s| {
-            let distance = self.calculate_distance_in_km(s.latitude, s.longitude, lat, lon);
-
-            if distance <= 0.100 {
-                let mut current_distance = minimum_distance.lock().unwrap();
-                if distance < *current_distance {
-                    *current_distance = distance;
-                    let mut current_bus = near_bus.lock().unwrap();
-                    *current_bus = Some(s);
-                }
-            }
-        });
-
-        let returning_value = near_bus.lock().map_err(|_| ParsingResultError::NoBusStop)?;
-        if returning_value.is_none() {
+        if found_near_bus.0 > bus_stops.len() || found_near_bus.1 > 0.100 {
             return Ok(None);
         }
 
-        let unwrapped_result = returning_value.ok_or(ParsingResultError::NoBusStop)?;
-        Ok(Some(unwrapped_result))
+        let bus_by_index = &bus_stops[found_near_bus.0];
+        Ok(Some(bus_by_index))
     }
 
     fn calculate_distance_in_km(
@@ -223,6 +219,7 @@ impl Parser {
         let dlat = self.to_radians(next_lat - current_lat);
         let dlon = self.to_radians(next_lon - current_lon);
 
+        // TODO: Рассчитывать изначально, что бы не в параллель рассчитывать
         let rlat = self.to_radians(current_lat);
         let rlat2 = self.to_radians(next_lat);
 
@@ -253,7 +250,7 @@ mod tests {
     use super::*;
 
     #[test]
-    // #[ignore = "Only for local run"]
+    #[ignore = "Only for local run"]
     pub fn should_parse_file() -> ParsingResult<()> {
         let file = Path::new(env!("OUT_DIR")).join("export.geojson");
 
