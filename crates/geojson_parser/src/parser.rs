@@ -58,7 +58,7 @@ impl Parser {
 
         let bus_stops: Vec<BusStop> = parsed_bus_stops
             .features
-            .iter()
+            .par_iter()
             .map(|f| {
                 let lat = f.geometry.coordinates[1].as_f64().unwrap();
                 let long = f.geometry.coordinates[0].as_f64().unwrap();
@@ -71,17 +71,15 @@ impl Parser {
             })
             .collect();
 
-        let routes = parsed_routes
+        let result = parsed_routes
             .features
-            .iter()
+            .par_iter()
             .filter(|f| f.properties.from.is_some() && f.properties.to.is_some())
-            .fold(vec![], |mut acc, x| {
-                acc.extend(self.harvest_entries_through_route(x, &bus_stops));
+            .map(|x| self.harvest_entries_through_route(x, &bus_stops))
+            .flatten()
+            .collect::<Vec<ParsingEntry>>();
 
-                acc
-            });
-
-        Ok(routes)
+        Ok(result)
     }
 
     fn harvest_entries_through_route(
