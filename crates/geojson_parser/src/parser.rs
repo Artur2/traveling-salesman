@@ -84,7 +84,11 @@ impl Parser {
         Ok(routes)
     }
 
-    fn harvest_entries_through_route(&self, feature: &Feature, bus_stops: &Vec<BusStop>) -> Vec<ParsingEntry> {
+    fn harvest_entries_through_route(
+        &self,
+        feature: &Feature,
+        bus_stops: &Vec<BusStop>,
+    ) -> Vec<ParsingEntry> {
         let definition = feature.geometry.type_definition.clone();
         let mut results = vec![];
         match definition.as_str() {
@@ -175,8 +179,6 @@ impl Parser {
                                     if let (Some(lat), Some(lon)) =
                                         (latitude.as_f64(), longitude.as_f64())
                                     {
-
-
                                         if current_lat.is_none() && current_lon.is_none() {
                                             current_lat = Some(lat);
                                             current_lon = Some(lon);
