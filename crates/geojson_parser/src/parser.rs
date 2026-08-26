@@ -188,6 +188,7 @@ impl Parser {
     ) -> ParsingResult<Option<&'a BusStop>> {
         let near_bus: Mutex<Option<&BusStop>> = Mutex::new(None);
         let minimum_distance = Mutex::new(i32::MAX as f64);
+        // Подумать не использовать мьютекс
 
         bus_stops.par_iter().for_each(|s| {
             let distance = self.calculate_distance_in_km(s.latitude, s.longitude, lat, lon);
