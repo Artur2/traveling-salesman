@@ -200,7 +200,7 @@ impl Parser {
                 },
             );
 
-        if found_near_bus.0 > bus_stops.len() || found_near_bus.1 > 0.100 {
+        if found_near_bus.1 > 0.1f64 || found_near_bus.0 > bus_stops.len() {
             return Ok(None);
         }
 
