@@ -7,13 +7,13 @@ type OptionalVertexRc = Option<Rc<RefCell<Vertex>>>;
 
 pub(crate) struct Edge {
     pub identifier: Weak<str>,
-    pub weight: u32,
+    pub weight: f64,
     pub source: OptionalVertexRc,
     pub destination: OptionalVertexRc,
 }
 
 impl Edge {
-    pub fn new(identifier: Weak<str>, weight: u32) -> Self {
+    pub fn new(identifier: Weak<str>, weight: f64) -> Self {
         Self {
             identifier,
             weight,

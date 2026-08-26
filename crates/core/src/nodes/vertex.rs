@@ -42,7 +42,7 @@ impl Vertex {
         string_pool: &mut StringPool,
         source_vertex: &Rc<RefCell<Vertex>>,
         destination_vertex: &Rc<RefCell<Vertex>>,
-        weight: u32,
+        weight: f64,
     ) {
         let edge_name: String;
         let mut source_vertex_name: String = Default::default();

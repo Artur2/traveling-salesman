@@ -58,7 +58,7 @@ impl Graph {
         &mut self,
         source_vector_name: String,
         destination_vector_name: String,
-        weight: u32,
+        weight: f64,
     ) {
         if self.has_connection_between_vertices(&source_vector_name, &destination_vector_name) {
             panic!("Duplicate connection");
@@ -186,7 +186,7 @@ pub mod tests {
         let mut graph = Graph::new("test".to_owned());
         graph.add_vertex("vertex01".to_owned());
         graph.add_vertex("vertex02".to_owned());
-        graph.connect_vertices("vertex01".to_owned(), "vertex02".to_owned(), 1);
+        graph.connect_vertices("vertex01".to_owned(), "vertex02".to_owned(), 1f64);
 
         assert!(
             graph.has_edge_connections("vertex01-vertex02", ConnectionType::SourceAndDestination)
@@ -200,8 +200,8 @@ pub mod tests {
         graph.add_vertex("vertex01".to_owned());
         graph.add_vertex("vertex02".to_owned());
 
-        graph.connect_vertices("vertex01".to_owned(), "vertex02".to_owned(), 1);
-        graph.connect_vertices("vertex01".to_owned(), "vertex02".to_owned(), 1);
+        graph.connect_vertices("vertex01".to_owned(), "vertex02".to_owned(), 1f64);
+        graph.connect_vertices("vertex01".to_owned(), "vertex02".to_owned(), 1f64);
     }
 
     #[test]
@@ -211,8 +211,8 @@ pub mod tests {
         graph.add_vertex("vertex01".to_owned());
         graph.add_vertex("vertex02".to_owned());
 
-        graph.connect_vertices("vertex01".to_owned(), "vertex02".to_owned(), 1);
-        graph.connect_vertices("vertex02".to_owned(), "vertex01".to_owned(), 1);
+        graph.connect_vertices("vertex01".to_owned(), "vertex02".to_owned(), 1f64);
+        graph.connect_vertices("vertex02".to_owned(), "vertex01".to_owned(), 1f64);
     }
 
     #[test]
@@ -227,6 +227,6 @@ pub mod tests {
     #[should_panic]
     pub fn connecting_edge_to_unknown_vertex() {
         let mut graph = Graph::new("test".to_owned());
-        graph.connect_vertices("vertex01".to_owned(), "unknown_vertex".to_owned(), 1);
+        graph.connect_vertices("vertex01".to_owned(), "unknown_vertex".to_owned(), 1f64);
     }
 }

@@ -6,19 +6,19 @@ type GeoJSONParser = geojson_parser::parser::Parser;
 
 #[derive(Parser)]
 pub struct Args {
-    #[arg(short, long)]
+    #[arg(short, long, default_value = "export.geojson")]
     geo_json_path: String,
-    #[arg(short, long)]
+    #[arg(short, long, default_value = "bus_stops_named.geojson")]
     buses_json_path: String,
-    #[arg(short, long)]
+    #[arg(short, long, default_value = "Аэропорт Кольцово")]
     source: String,
-    #[arg(short, long)]
+    #[arg(short, long, default_value = "УрФУ")]
     destination: String,
-    #[arg(short, long)]
+    #[arg(short, long, default_value = "1000")]
     cross_count: u32,
-    #[arg(short, long)]
+    #[arg(short, long, default_value = "1000")]
     paths_generations: u32,
-    #[arg(short, long, help = "Must be between 1 and 99")]
+    #[arg(short, long, help = "Must be between 1 and 99", default_value = "50")]
     fit_percent: u32,
 }
 
@@ -56,7 +56,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             path_resolver.connect_vertices(
                 result.from.to_owned(),
                 result.to.to_owned(),
-                result.kms as u32,
+                result.kms,
             );
         }
     });

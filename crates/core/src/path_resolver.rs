@@ -29,7 +29,7 @@ impl PathResolver {
         &mut self,
         source_vector_name: String,
         destination_vector_name: String,
-        weight: u32,
+        weight: f64,
     ) {
         self.graph
             .connect_vertices(source_vector_name, destination_vector_name, weight);
@@ -75,7 +75,7 @@ impl PathResolver {
                 .crossover(&mut self.graph.string_pool, &pairs);
 
             let mut fit_values = vec![];
-            let mut max_fit_value = u32::MIN;
+            let mut max_fit_value = 0f64;
             for crossed_pair in _crossed {
                 let fit = self.processing_algorithm.get_fit_value(&crossed_pair);
                 fit_values.push((fit, crossed_pair));

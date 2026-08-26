@@ -121,13 +121,13 @@ impl ProcessingAlgorithm {
         crossed
     }
 
-    pub(crate) fn get_fit_value(&self, route: &MutableVertexReferences) -> u32 {
+    pub(crate) fn get_fit_value(&self, route: &MutableVertexReferences) -> f64 {
         let route_path = route
             .iter()
             .map(|vertex| vertex.borrow().name.clone())
             .collect::<Vec<Weak<str>>>();
 
-        let mut fit = 0;
+        let mut fit = 0f64;
         route.iter().enumerate().for_each(|(index, vertex)| {
             if index + 1 >= route_path.len() {
                 return;
@@ -173,7 +173,7 @@ impl ProcessingAlgorithm {
         string_pool: &mut StringPool,
         right_last_vertex: &MutableVertexReference,
         left_first_vertex: &MutableVertexReference,
-        weight: u32,
+        weight: f64,
         right: &MutableVertexReferences,
         left: &MutableVertexReferences,
     ) -> Vec<MutableVertexReference> {
@@ -260,8 +260,8 @@ impl ProcessingAlgorithm {
         &self,
         right: &'a MutableVertexReferences,
         left: &'a MutableVertexReferences,
-    ) -> (&'a MutableVertexReference, &'a MutableVertexReference, u32) {
-        let mut weight = 0;
+    ) -> (&'a MutableVertexReference, &'a MutableVertexReference, f64) {
+        let mut weight = 0f64;
         let right_last_vertex = right.last().unwrap();
         let left_first_vertex = left.first().unwrap();
 
@@ -398,7 +398,7 @@ impl ProcessingAlgorithm {
     fn connect_vertices(
         &self,
         string_pool: &mut StringPool,
-        resulting_vertices: Vec<(u32, MutableVertexReference)>,
+        resulting_vertices: Vec<(f64, MutableVertexReference)>,
     ) -> Vec<MutableVertexReference> {
         let mut new_vertexes = vec![];
         for (i, result) in resulting_vertices.iter().enumerate() {
@@ -431,6 +431,8 @@ impl ProcessingAlgorithm {
 
 #[allow(unused_imports)]
 mod tests {
+    use std::f64;
+    use std::i8::MIN;
     use super::*;
     use crate::nodes::graph::Graph;
     use std::time::Instant;
@@ -443,13 +445,13 @@ mod tests {
         graph.add_vertex("Ekaterinburg".to_owned());
         graph.add_vertex("Sysert".to_owned());
 
-        graph.connect_vertices("Polevskoy".to_owned(), "Revda".to_owned(), 2);
-        graph.connect_vertices("Revda".to_owned(), "Pervouralsk".to_owned(), 2);
-        graph.connect_vertices("Pervouralsk".to_owned(), "Ekaterinburg".to_owned(), 4);
-        graph.connect_vertices("Polevskoy".to_owned(), "Ekaterinburg".to_owned(), 5);
-        graph.connect_vertices("Ekaterinburg".to_owned(), "Revda".to_owned(), 3);
-        graph.connect_vertices("Sysert".to_owned(), "Polevskoy".to_owned(), 3);
-        graph.connect_vertices("Ekaterinburg".to_owned(), "Sysert".to_owned(), 3);
+        graph.connect_vertices("Polevskoy".to_owned(), "Revda".to_owned(), 2f64);
+        graph.connect_vertices("Revda".to_owned(), "Pervouralsk".to_owned(), 2f64);
+        graph.connect_vertices("Pervouralsk".to_owned(), "Ekaterinburg".to_owned(), 4f64);
+        graph.connect_vertices("Polevskoy".to_owned(), "Ekaterinburg".to_owned(), 5f64);
+        graph.connect_vertices("Ekaterinburg".to_owned(), "Revda".to_owned(), 3f64);
+        graph.connect_vertices("Sysert".to_owned(), "Polevskoy".to_owned(), 3f64);
+        graph.connect_vertices("Ekaterinburg".to_owned(), "Sysert".to_owned(), 3f64);
 
         graph
     }
@@ -469,25 +471,25 @@ mod tests {
         graph.add_vertex("Первоуральск".to_owned());
         graph.add_vertex("Екатеринбург".to_owned());
 
-        graph.connect_vertices("Верхняя Пышма".to_owned(), "Екатеринбург".to_owned(), 17);
-        graph.connect_vertices("Березовский".to_owned(), "Екатеринбург".to_owned(), 14);
-        graph.connect_vertices("Екатеринбург".to_owned(), "Дегтярск".to_owned(), 71);
-        graph.connect_vertices("Екатеринбург".to_owned(), "Арамиль".to_owned(), 30);
-        graph.connect_vertices("Арамиль".to_owned(), "Белоярский".to_owned(), 47);
-        graph.connect_vertices("Екатеринбург".to_owned(), "Заречный".to_owned(), 61);
-        graph.connect_vertices("Екатеринбург".to_owned(), "Полевской".to_owned(), 68);
-        graph.connect_vertices("Екатеринбург".to_owned(), "Ревда".to_owned(), 54);
-        graph.connect_vertices("Екатеринбург".to_owned(), "Асбест".to_owned(), 90);
-        graph.connect_vertices("Екатеринбург".to_owned(), "Белоярский".to_owned(), 53);
-        graph.connect_vertices("Верхняя Пышма".to_owned(), "Березовский".to_owned(), 23);
-        graph.connect_vertices("Заречный".to_owned(), "Березовский".to_owned(), 57);
-        graph.connect_vertices("Заречный".to_owned(), "Белоярский".to_owned(), 11);
-        graph.connect_vertices("Асбест".to_owned(), "Заречный".to_owned(), 42);
-        graph.connect_vertices("Ревда".to_owned(), "Дегтярск".to_owned(), 21);
-        graph.connect_vertices("Дегтярск".to_owned(), "Полевской".to_owned(), 38);
-        graph.connect_vertices("Верхняя Пышма".to_owned(), "Первоуральск".to_owned(), 59);
-        graph.connect_vertices("Первоуральск".to_owned(), "Ревда".to_owned(), 15);
-        graph.connect_vertices("Сысерть".to_owned(), "Арамиль".to_owned(), 28);
+        graph.connect_vertices("Верхняя Пышма".to_owned(), "Екатеринбург".to_owned(), 17f64);
+        graph.connect_vertices("Березовский".to_owned(), "Екатеринбург".to_owned(), 14f64);
+        graph.connect_vertices("Екатеринбург".to_owned(), "Дегтярск".to_owned(), 71f64);
+        graph.connect_vertices("Екатеринбург".to_owned(), "Арамиль".to_owned(), 30f64);
+        graph.connect_vertices("Арамиль".to_owned(), "Белоярский".to_owned(), 47f64);
+        graph.connect_vertices("Екатеринбург".to_owned(), "Заречный".to_owned(), 61f64);
+        graph.connect_vertices("Екатеринбург".to_owned(), "Полевской".to_owned(), 68f64);
+        graph.connect_vertices("Екатеринбург".to_owned(), "Ревда".to_owned(), 54f64);
+        graph.connect_vertices("Екатеринбург".to_owned(), "Асбест".to_owned(), 90f64);
+        graph.connect_vertices("Екатеринбург".to_owned(), "Белоярский".to_owned(), 53f64);
+        graph.connect_vertices("Верхняя Пышма".to_owned(), "Березовский".to_owned(), 23f64);
+        graph.connect_vertices("Заречный".to_owned(), "Березовский".to_owned(), 57f64);
+        graph.connect_vertices("Заречный".to_owned(), "Белоярский".to_owned(), 11f64);
+        graph.connect_vertices("Асбест".to_owned(), "Заречный".to_owned(), 42f64);
+        graph.connect_vertices("Ревда".to_owned(), "Дегтярск".to_owned(), 21f64);
+        graph.connect_vertices("Дегтярск".to_owned(), "Полевской".to_owned(), 38f64);
+        graph.connect_vertices("Верхняя Пышма".to_owned(), "Первоуральск".to_owned(), 59f64);
+        graph.connect_vertices("Первоуральск".to_owned(), "Ревда".to_owned(), 15f64);
+        graph.connect_vertices("Сысерть".to_owned(), "Арамиль".to_owned(), 28f64);
 
         graph
     }
@@ -573,7 +575,7 @@ mod tests {
         time = Instant::now();
         random_routes.iter().for_each(|r| {
             let fit_value = processing_algorithm.get_fit_value(r);
-            assert!(fit_value > 0);
+            assert!(fit_value > 0f64);
         });
 
         let elapsed_fit = time.elapsed().as_micros();
@@ -631,7 +633,7 @@ mod tests {
             let _crossed = processing_algorithm.crossover(&mut graph.string_pool, &pairs);
 
             let mut fit_values = vec![];
-            let mut max_fit_value = u32::MIN;
+            let mut max_fit_value = 0f64;
             for crossed_pair in _crossed {
                 let fit = processing_algorithm.get_fit_value(&crossed_pair);
                 fit_values.push((fit, crossed_pair));
