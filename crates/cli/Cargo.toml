@@ -7,3 +7,4 @@ edition = "2024"
 traveling_salesman_genetic = { path = "../core" }
 geojson_parser = { path = "../geojson_parser" }
 clap = { version = "4.6.6", features = ["derive"] }
+mimalloc = "0.1.52"

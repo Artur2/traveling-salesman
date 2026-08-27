@@ -1,8 +1,12 @@
+use mimalloc::MiMalloc;
 use clap::Parser;
 use geojson_parser::shared_types::ParsingResultError;
 use traveling_salesman_genetic::path_resolver::PathResolver;
 
 type GeoJSONParser = geojson_parser::parser::Parser;
+
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
 
 #[derive(Parser)]
 pub struct Args {
