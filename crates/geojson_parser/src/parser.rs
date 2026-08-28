@@ -103,7 +103,6 @@ impl Parser {
                         Value::Array(pairs) => {
                             let longitude = &pairs[0];
                             let latitude = &pairs[1];
-                            let mut kms = 0.0;
 
                             if let (Some(lat), Some(lon)) = (latitude.as_f64(), longitude.as_f64())
                             {
@@ -114,13 +113,12 @@ impl Parser {
                                     let next_lat = lat;
                                     let next_lon = lon;
 
-                                    kms = self.calculate_distance_in_km(
+                                    distance += self.calculate_distance_in_km(
                                         current_lat.unwrap(),
                                         current_lon.unwrap(),
                                         next_lat,
                                         next_lon,
                                     );
-                                    distance += kms;
 
                                     current_lat = Some(next_lat);
                                     current_lon = Some(next_lon);
@@ -184,13 +182,12 @@ impl Parser {
                                             let next_lat = lat;
                                             let next_lon = lon;
 
-                                            let kms = self.calculate_distance_in_km(
+                                            distance += self.calculate_distance_in_km(
                                                 current_lat.unwrap(),
                                                 current_lon.unwrap(),
                                                 next_lat,
                                                 next_lon,
                                             );
-                                            distance += kms;
 
                                             current_lat = Some(next_lat);
                                             current_lon = Some(next_lon);
