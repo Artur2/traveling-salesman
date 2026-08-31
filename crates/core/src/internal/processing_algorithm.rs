@@ -132,8 +132,8 @@ impl ProcessingAlgorithm {
             if index + 1 >= route_path.len() {
                 return;
             }
-            let current_vertex_name = route_path[index].clone();
-            let next_vertex_name = route_path[index + 1].clone();
+            let current_vertex_name = unsafe { route_path.get_unchecked(index) }.clone();
+            let next_vertex_name = unsafe { route_path.get_unchecked(index + 1) }.clone();
 
             let borrowed = vertex.borrow();
 
@@ -319,7 +319,7 @@ impl ProcessingAlgorithm {
         let borrowed_starting_point = starting_point_rc.borrow();
         let random_value = random_index!(&borrowed_starting_point);
 
-        let edge = &borrowed_starting_point.edges[random_value];
+        let edge = unsafe { borrowed_starting_point.edges.get_unchecked(random_value) };
         let edge_borrowed = edge.borrow();
 
         let new_vertex = Rc::new(RefCell::new(Vertex::new(
@@ -350,7 +350,8 @@ impl ProcessingAlgorithm {
                             name_left.eq(&name_right)
                         }) {
                             let random_value = random_index!(&borrowed_vertex_source);
-                            let random_edge = &borrowed_vertex_source.edges[random_value];
+                            let random_edge =
+                                unsafe { borrowed_vertex_source.edges.get_unchecked(random_value) };
                             stack.push(random_edge.clone());
                             visited_vertices.push(vertex_source.clone());
 
@@ -374,7 +375,11 @@ impl ProcessingAlgorithm {
                             name_left.eq(&name_right)
                         }) {
                             let random_value = random_index!(&borrowed_vertex_destination);
-                            let random_edge = &borrowed_vertex_destination.edges[random_value];
+                            let random_edge = unsafe {
+                                borrowed_vertex_destination
+                                    .edges
+                                    .get_unchecked(random_value)
+                            };
                             stack.push(random_edge.clone());
                             visited_vertices.push(vertex_destination.clone());
 
@@ -408,8 +413,8 @@ impl ProcessingAlgorithm {
                 break;
             }
 
-            let current_vertex = &resulting_vertices[i];
-            let next_vertex = &resulting_vertices[next_index];
+            let current_vertex = unsafe { resulting_vertices.get_unchecked(i) };
+            let next_vertex = unsafe { resulting_vertices.get_unchecked(next_index) };
 
             let mut borrowed_vertex = current_vertex.1.borrow_mut();
             let mut borrowed_next_vertex = next_vertex.1.borrow_mut();
@@ -431,10 +436,10 @@ impl ProcessingAlgorithm {
 
 #[allow(unused_imports)]
 mod tests {
-    use std::f64;
-    use std::i8::MIN;
     use super::*;
     use crate::nodes::graph::Graph;
+    use std::f64;
+    use std::i8::MIN;
     use std::time::Instant;
 
     fn create_graph() -> Graph {
@@ -642,7 +647,8 @@ mod tests {
                 }
             }
 
-            let rank_value = max_fit_value as f64 * (50f64 /* Percentage */ * 0.01f64 /* Convert to percents */);
+            let rank_value =
+                max_fit_value as f64 * (50f64 /* Percentage */ * 0.01f64/* Convert to percents */);
             let mut filter_values: Vec<MutableVertexReferences> = fit_values
                 .iter()
                 .filter(|f| (f.0 as f64) <= rank_value)

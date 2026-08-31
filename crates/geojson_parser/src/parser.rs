@@ -101,8 +101,8 @@ impl Parser {
                 for items in feature.geometry.coordinates.as_array() {
                     items.iter().for_each(|item| match item {
                         Value::Array(pairs) => {
-                            let longitude = &pairs[0];
-                            let latitude = &pairs[1];
+                            let longitude = unsafe { pairs.get_unchecked(0) };
+                            let latitude = unsafe { pairs.get_unchecked(1) };
 
                             if let (Some(lat), Some(lon)) = (latitude.as_f64(), longitude.as_f64())
                             {
@@ -172,8 +172,8 @@ impl Parser {
                         Value::Array(inner_array) => {
                             inner_array.iter().for_each(|array| match array {
                                 Value::Array(pairs) => {
-                                    let longitude = &pairs[0];
-                                    let latitude = &pairs[1];
+                                    let longitude = unsafe { pairs.get_unchecked(0) };
+                                    let latitude = unsafe { pairs.get_unchecked(1) };
 
                                     if let (Some(lat), Some(lon)) =
                                         (latitude.as_f64(), longitude.as_f64())
