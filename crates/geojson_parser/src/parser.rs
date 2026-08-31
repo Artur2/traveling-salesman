@@ -128,11 +128,14 @@ impl Parser {
                                     self.get_near_bus_stop_index(lat, lon, bus_stops);
                                 if let Some(unwrapped_bus_index) = near_bus_index.unwrap() {
                                     if current_bus.is_none() {
-                                        current_bus = Some(&bus_stops[unwrapped_bus_index]);
+                                        current_bus = Some(unsafe {
+                                            &bus_stops.get_unchecked(unwrapped_bus_index)
+                                        });
                                         previous_point_kms = distance;
                                     } else {
                                         let from_bus = current_bus.unwrap();
-                                        let to_bus = &bus_stops[unwrapped_bus_index];
+                                        let to_bus =
+                                            unsafe { bus_stops.get_unchecked(unwrapped_bus_index) };
 
                                         if from_bus.name == to_bus.name {
                                             return;
@@ -198,11 +201,15 @@ impl Parser {
 
                                         if let Some(unwrapped_bus_index) = near_bus_index.unwrap() {
                                             if current_bus.is_none() {
-                                                current_bus = Some(&bus_stops[unwrapped_bus_index]);
+                                                current_bus = Some(unsafe {
+                                                    bus_stops.get_unchecked(unwrapped_bus_index)
+                                                });
                                                 previous_point_kms = distance;
                                             } else {
                                                 let from_bus = current_bus.unwrap();
-                                                let to_bus = &bus_stops[unwrapped_bus_index];
+                                                let to_bus = unsafe {
+                                                    bus_stops.get_unchecked(unwrapped_bus_index)
+                                                };
 
                                                 if from_bus.name == to_bus.name {
                                                     return;
