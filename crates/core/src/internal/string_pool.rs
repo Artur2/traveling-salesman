@@ -1,31 +1,25 @@
+use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 
 #[derive(Default)]
 pub struct StringPool {
-    string_references: Vec<Rc<str>>,
+    string_references: HashMap<String, Rc<str>>,
 }
 
 impl StringPool {
     pub fn new() -> Self {
         Self {
-            string_references: vec![],
+            string_references: HashMap::new(),
         }
     }
 
     pub fn intern(&mut self, interning_string: String) -> Weak<str> {
         let interned_string = self
             .string_references
-            .iter()
-            .find(|rc| rc.as_ref().eq(&interning_string));
+            .entry(interning_string)
+            .or_insert_with_key(|f| Rc::from(f.as_str()));
 
-        if interned_string.is_some() {
-            Rc::downgrade(&interned_string.unwrap())
-        } else {
-            let new_reference = Rc::from(interning_string.as_str());
-            let weak_reference = Rc::downgrade(&new_reference);
-            self.string_references.push(new_reference);
-            weak_reference
-        }
+        Rc::downgrade(interned_string)
     }
 }
 
