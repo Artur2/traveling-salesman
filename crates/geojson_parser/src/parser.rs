@@ -74,7 +74,6 @@ impl Parser {
         let result = parsed_routes
             .features
             .par_iter()
-            .filter(|f| f.properties.from.is_some() && f.properties.to.is_some())
             .map(|x| self.harvest_entries_through_route(x, &bus_stops))
             .flatten()
             .collect::<Vec<ParsingEntry>>();
