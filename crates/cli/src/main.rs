@@ -5,6 +5,11 @@ use traveling_salesman_genetic::path_resolver::PathResolver;
 
 type GeoJSONParser = geojson_parser::parser::Parser;
 
+#[cfg(miri)]
+#[global_allocator]
+static GLOBAL: std::alloc::System = std::alloc::System;
+
+#[cfg(not(miri))]
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
