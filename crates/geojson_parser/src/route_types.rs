@@ -1,29 +1,8 @@
-use serde::Deserialize;
-use serde_json::Value;
 use crate::shared_types::Geometry;
-
-#[derive(Deserialize, Clone)]
-pub struct Route {
-    pub from: Option<String>,
-    pub to: Option<String>,
-    #[serde(rename = "@relations")]
-    pub relations: Option<Vec<Relation>>
-}
-
-#[derive(Deserialize, Clone)]
-pub struct Relation {
-    pub reltags: RelationRoute
-}
-
-#[derive(Deserialize, Clone)]
-pub struct RelationRoute {
-    pub from: Option<String>,
-    pub to: Option<String>,
-}
+use serde::Deserialize;
 
 #[derive(Deserialize)]
 pub struct Feature {
-    pub properties: Route,
     pub geometry: Geometry
 }
 

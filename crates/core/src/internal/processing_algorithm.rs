@@ -20,8 +20,8 @@ impl ProcessingAlgorithm {
         &self,
         string_pool: &mut StringPool,
         vertices: &WeakVertexReferences,
-        source: &String,
-        destination: &String,
+        source: &str,
+        destination: &str,
         amount_of_generations: u32,
     ) -> Vec<MutableVertexReferences> {
         let starting_point = vertices.iter().find(|v| {
@@ -54,7 +54,7 @@ impl ProcessingAlgorithm {
 
     pub(crate) fn generate_pairs(
         &self,
-        vertices: &Vec<MutableVertexReferences>,
+        vertices: &[MutableVertexReferences],
     ) -> Vec<MutableVertexPair> {
         let mut return_vertices = vec![];
         let mut left: Option<MutableVertexReferences> = None;
@@ -91,7 +91,7 @@ impl ProcessingAlgorithm {
         let mut crossed: Vec<MutableVertexReferences> = vec![];
         for pair in pairs {
             // Selecting same route points with right in left pair
-            let same_points = self.select_same_route_points_in_pair(&pair);
+            let same_points = self.select_same_route_points_in_pair(pair);
 
             // Select random index of found same pairs
             let random_index = thread_rng().gen_range(0, same_points.len() - 1);
@@ -188,20 +188,6 @@ impl ProcessingAlgorithm {
         });
 
         new_vector
-    }
-
-    fn remove_edges(
-        &self,
-        right: &MutableVertexReference,
-        left: &MutableVertexReference,
-        right_index: u32,
-        left_index: u32,
-    ) {
-        let mut borrowed_last = right.borrow_mut();
-        let mut borrowed_first = left.borrow_mut();
-
-        borrowed_last.edges.remove(right_index as usize);
-        borrowed_first.edges.remove(left_index as usize);
     }
 
     fn select_same_route_points_in_pair(
@@ -435,11 +421,11 @@ impl ProcessingAlgorithm {
 }
 
 #[allow(unused_imports)]
+#[allow(dead_code)]
 mod tests {
     use super::*;
     use crate::nodes::graph::Graph;
     use std::f64;
-    use std::i8::MIN;
     use std::time::Instant;
 
     fn create_graph() -> Graph {
@@ -652,7 +638,7 @@ mod tests {
             let mut filter_values: Vec<MutableVertexReferences> = fit_values
                 .iter()
                 .filter(|f| (f.0 as f64) <= rank_value)
-                .map(|(f, v)| v.clone())
+                .map(|(_, v)| v.clone())
                 .collect();
 
             if filter_values.len() > 1 {

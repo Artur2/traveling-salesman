@@ -9,6 +9,7 @@ use std::io::Read;
 use std::path::Path;
 
 #[must_use = "Main entry point for parsing geojson format"]
+#[derive(Default)]
 pub struct Parser;
 
 impl Parser {
@@ -52,9 +53,9 @@ impl Parser {
             })?;
 
         let parsed_routes: RoutesExport =
-            serde_json::from_str(&string).map_err(|e| ParsingResultError::DeserializationError)?;
+            serde_json::from_str(&string).map_err(|_| ParsingResultError::DeserializationError)?;
         let parsed_bus_stops: BusStopsExport = serde_json::from_str(&buses_string)
-            .map_err(|e| ParsingResultError::DeserializationError)?;
+            .map_err(|_| ParsingResultError::DeserializationError)?;
 
         let bus_stops: Vec<BusStop> = parsed_bus_stops
             .features
@@ -97,6 +98,7 @@ impl Parser {
 
                 let mut distance = 0f64;
 
+                #[allow(for_loops_over_fallibles)]
                 for items in feature.geometry.coordinates.as_array() {
                     items.iter().for_each(|item| match item {
                         Value::Array(pairs) => {
@@ -128,7 +130,7 @@ impl Parser {
                                 if let Some(unwrapped_bus_index) = near_bus_index.unwrap() {
                                     if current_bus.is_none() {
                                         current_bus = Some(unsafe {
-                                            &bus_stops.get_unchecked(unwrapped_bus_index)
+                                            bus_stops.get_unchecked(unwrapped_bus_index)
                                         });
                                         previous_point_kms = distance;
                                     } else {
@@ -166,6 +168,7 @@ impl Parser {
 
                 let mut distance = 0f64;
 
+                #[allow(for_loops_over_fallibles)]
                 for items in feature.geometry.coordinates.as_array() {
                     items.iter().for_each(|item| match item {
                         Value::Array(inner_array) => {
@@ -307,6 +310,7 @@ impl Parser {
     }
 }
 
+#[allow(unused_imports)]
 mod tests {
     use super::*;
 

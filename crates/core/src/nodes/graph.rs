@@ -21,7 +21,7 @@ pub(crate) struct Graph {
     pub vertex_references: MutableVertexReferences,
     /// Flat edge references
     pub edge_references: MutableEdgeReferences,
-    pub string_pool: StringPool
+    pub string_pool: StringPool,
 }
 
 impl Graph {
@@ -30,7 +30,7 @@ impl Graph {
             name,
             vertex_references: vec![],
             edge_references: vec![],
-            string_pool: StringPool::new()
+            string_pool: StringPool::new(),
         }
     }
 
@@ -76,7 +76,9 @@ impl Graph {
         });
 
         if found_source_vector.is_none() || found_destination_vector.is_none() {
-            panic!("Create vertex first, cannot find source {source_vector_name} or destination {destination_vector_name}");
+            panic!(
+                "Create vertex first, cannot find source {source_vector_name} or destination {destination_vector_name}"
+            );
         }
 
         let source_vector_reference = found_source_vector.unwrap();
@@ -138,22 +140,18 @@ impl Graph {
             let borrowed_source_name = upgrade_conditionally!(borrowed_source.name);
             let borrowed_destination_name = upgrade_conditionally!(borrowed_destination.name);
 
-            return (*borrowed_source_name == *source && *borrowed_destination_name == *destination)
-                || (*borrowed_source_name == *destination && *borrowed_destination_name == *source);
+            (*borrowed_source_name == *source && *borrowed_destination_name == *destination)
+                || (*borrowed_source_name == *destination && *borrowed_destination_name == *source)
         })
     }
 
     /// Checking if edge has connections(source or/and destination or none)
     pub fn has_edge_connections(&self, identifier: &str, connection_type: ConnectionType) -> bool {
-        let found = self
-            .edge_references
-            .iter()
-            .map(|v| v.borrow())
-            .find(|e| {
-                let upgraded_identifier = upgrade_conditionally!(e.identifier);
-                let raw = &*upgraded_identifier;
-                raw.eq(identifier)
-            });
+        let found = self.edge_references.iter().map(|v| v.borrow()).find(|e| {
+            let upgraded_identifier = upgrade_conditionally!(e.identifier);
+            let raw = &*upgraded_identifier;
+            raw.eq(identifier)
+        });
 
         if found.is_none() {
             return false;

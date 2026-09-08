@@ -41,7 +41,7 @@ impl PathResolver {
         destination_vector_name: &String,
     ) -> bool {
         self.graph
-            .has_connection_between_vertices(&source_vector_name, &destination_vector_name)
+            .has_connection_between_vertices(source_vector_name, destination_vector_name)
     }
 
     pub fn resolve_optimal_path(
@@ -60,8 +60,8 @@ impl PathResolver {
                 .iter()
                 .map(Rc::downgrade)
                 .collect(),
-            &source.to_owned(),
-            &destination.to_owned(),
+            source,
+            destination,
             amount_of_generated_paths,
         );
 
@@ -88,7 +88,7 @@ impl PathResolver {
             let rank_value = max_fit_value * (0.01f64 * percent_of_fit as f64);
             let mut filter_values: Vec<MutableVertexReferences> = fit_values
                 .iter()
-                .filter(|f| f.0 as f64 >= rank_value)
+                .filter(|f| f.0 >= rank_value)
                 .map(|(_, v)| v.clone())
                 .collect();
 
